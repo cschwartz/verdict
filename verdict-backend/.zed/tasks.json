@@ -1,0 +1,32 @@
+[
+  {
+    "label": "dev: Start Server",
+    "command": "just dev",
+    "tags": ["dev-server"]
+  },
+  {
+    "label": "test: Run All Tests",
+    "command": "just test",
+    "tags": ["test"]
+  },
+  {
+    "label": "test: Run Tests with Coverage",
+    "command": "just test-cov",
+    "tags": ["test"]
+  },
+  {
+    "label": "db: Shell (pgcli)",
+    "command": "just db-shell",
+    "tags": ["database"]
+  },
+  {
+    "label": "db: Run Migrations",
+    "command": "just db-migrate",
+    "tags": ["database"]
+  },
+  {
+    "label": "db: Reset Database",
+    "command": "just db-reset",
+    "tags": ["database"]
+  }
+]

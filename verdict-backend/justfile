@@ -1,0 +1,97 @@
+set fallback
+set dotenv-load
+
+# List available recipes
+default:
+    @just --list
+
+# Start the FastAPI development server
+dev:
+    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# Run tests
+test *ARGS:
+    uv run pytest --disable-plugin-autoload {{ARGS}}
+
+# Run tests with coverage
+test-cov *ARGS:
+    uv run pytest --disable-plugin-autoload -p pytest_cov --cov=app --cov-report=html --cov-report=term-missing {{ARGS}}
+
+# Format code
+format:
+    uv run ruff format .
+
+# Lint code
+lint:
+    uv run ruff check . --fix
+
+# Type check
+type-check:
+    uv run mypy app
+
+# Run all code quality checks
+check: format lint type-check
+
+# Run database migrations
+db-migrate:
+    uv run alembic upgrade head
+
+# Create a new migration (usage: just db-migrate-create "my migration")
+db-migrate-create message:
+    uv run alembic revision --autogenerate -m "{{message}}"
+
+# Reset the development database
+db-reset:
+    #!/usr/bin/env bash
+    echo "Resetting database..."
+    dropdb --if-exists "$PGDATABASE"
+    createdb "$PGDATABASE"
+    echo "Database reset complete. Run 'just db-migrate' to apply migrations."
+
+# Reset the test database
+db-test-reset:
+    #!/usr/bin/env bash
+    echo "Resetting test database..."
+    dropdb --if-exists "$PGDATABASE_TEST"
+    createdb "$PGDATABASE_TEST"
+    echo "Test database reset complete."
+
+# Open database shell (pgcli)
+db-shell:
+    pgcli
+
+# Show database configuration
+db-info:
+    #!/usr/bin/env bash
+    echo "Database Configuration:"
+    echo "  DATABASE_URL: $DATABASE_URL"
+    echo "  PGHOST:       $PGHOST"
+    echo "  PGPORT:       $PGPORT"
+    echo "  PGDATABASE:   $PGDATABASE"
+    echo "  PGUSER:       $PGUSER"
+    echo "  Test DB:      $PGDATABASE_TEST"
+
+# Set up the full development environment
+setup:
+    #!/usr/bin/env bash
+    echo "Setting up development environment..."
+
+    echo ""
+    echo "1. Installing Python dependencies..."
+    uv sync
+
+    echo ""
+    echo "2. Waiting for PostgreSQL to be ready..."
+    until pg_isready > /dev/null 2>&1; do
+        echo "Waiting for PostgreSQL..."
+        sleep 1
+    done
+
+    echo ""
+    echo "3. Running database migrations..."
+    uv run alembic upgrade head
+
+    echo ""
+    echo "✅ Setup complete!"
+    echo ""
+    just --list

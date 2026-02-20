@@ -1,0 +1,161 @@
+[project]
+name = "verdict-backend"
+version = "0.1.0"
+description = "main service for verdict"
+readme = "README.md"
+requires-python = ">=3.14"
+
+dependencies = [
+    # Web framework
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    # ORM and database
+    "sqlmodel>=0.0.33",
+    "alembic>=1.13.0",
+    "psycopg2-binary>=2.9.9",
+    "sqlalchemy-json>=0.7.0",
+    # Configuration
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=9.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+
+    # Code quality
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+
+    # Development tools
+    "ipython>=8.12.0",
+    "rich>=13.0.0",
+]
+
+test = [
+    "pytest>=9.0.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.28.0",
+    "factory-boy>=3.3.0",
+    "faker>=30.0.0",
+]
+
+production = [
+    "psycopg2>=2.9.9",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# Tell hatchling where to find the package
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "B",     # flake8-bugbear
+    "ANN",   # flake8-annotations
+    "S",     # flake8-bandit (security)
+    "ERA",   # eradicate (commented-out code)
+    "UP",    # pyupgrade - modernize Python code
+    "RUF",   # Ruff-specific rules
+    "C4",    # flake8-comprehensions
+    "SIM",   # flake8-simplify
+    "TCH",   # flake8-type-checking (optimize imports)
+    "ASYNC", # flake8-async (async/await best practices)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests don't need type annotations or security checks
+"tests/**/*.py" = [
+    "S101",    # Allow assert
+    "ANN",     # No type annotations required
+    "S105",    # Hardcoded passwords (test data)
+    "S106",    # Hardcoded passwords in arguments (test data)
+]
+
+# Alembic migrations are auto-generated
+"alembic/versions/*.py" = [
+    "ERA001",  # Allow commented-out code (migration history)
+    "ANN",     # No type annotations required
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "api"]
+section-order = [
+    "future",
+    "standard-library",
+    "third-party",
+    "first-party",
+    "local-folder"
+]
+
+[tool.ruff.lint.flake8-type-checking]
+# Move type-only imports to TYPE_CHECKING blocks
+runtime-evaluated-base-classes = [
+    "pydantic.BaseModel",
+    "sqlmodel.SQLModel",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disable_error_code = ["arg-type", "no-untyped-def"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "tests/*",
+    "*/migrations/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "pytest-cov>=7.0.0",
+]
+test = [
+    "pytest-cov>=7.0.0",
+]
