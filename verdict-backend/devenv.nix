@@ -20,6 +20,7 @@ in
 
   languages.python = {
     enable = true;
+    version = pythonVersion;
     uv = {
       enable = true;
       sync.enable = true;
