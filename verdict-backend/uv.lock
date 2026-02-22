@@ -955,10 +955,20 @@ test = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "factory-boy" },
+    { name = "faker" },
+    { name = "httpx" },
     { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-cov" },
 ]
 test = [
+    { name = "factory-boy" },
+    { name = "faker" },
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
     { name = "pytest-cov" },
 ]
 
@@ -992,10 +1002,22 @@ provides-extras = ["dev", "test", "production"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "factory-boy", specifier = ">=3.3.0" },
+    { name = "faker", specifier = ">=30.0.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
     { name = "mypy", specifier = ">=1.19.1" },
+    { name = "pytest", specifier = ">=9.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
 ]
-test = [{ name = "pytest-cov", specifier = ">=7.0.0" }]
+test = [
+    { name = "factory-boy", specifier = ">=3.3.0" },
+    { name = "faker", specifier = ">=30.0.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
+    { name = "pytest", specifier = ">=9.0.0" },
+    { name = "pytest-asyncio", specifier = ">=0.24.0" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+]
 
 [[package]]
 name = "watchfiles"
