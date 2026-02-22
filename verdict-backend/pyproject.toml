@@ -116,6 +116,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short --strict-markers"
+asyncio_mode = "auto"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests",
@@ -153,9 +154,14 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    {include-group = "test"},
     "mypy>=1.19.1",
-    "pytest-cov>=7.0.0",
 ]
 test = [
+    "pytest>=9.0.0",
+    "pytest-asyncio>=0.24.0",
     "pytest-cov>=7.0.0",
+    "httpx>=0.28.0",
+    "factory-boy>=3.3.0",
+    "faker>=30.0.0",
 ]

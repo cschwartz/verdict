@@ -11,11 +11,11 @@ dev:
 
 # Run tests
 test *ARGS:
-    uv run pytest --disable-plugin-autoload {{ARGS}}
+    DATABASE_NAME=$DATABASE_NAME_TEST uv run pytest --disable-plugin-autoload -p asyncio {{ARGS}}
 
 # Run tests with coverage
 test-cov *ARGS:
-    uv run pytest --disable-plugin-autoload -p pytest_cov --cov=app --cov-report=html --cov-report=term-missing {{ARGS}}
+    DATABASE_NAME=$DATABASE_NAME_TEST uv run pytest --disable-plugin-autoload -p asyncio -p pytest_cov --cov=app --cov-report=html --cov-report=term-missing {{ARGS}}
 
 # Format code
 format:

@@ -14,7 +14,11 @@ class Settings(BaseSettings):
 
     @property
     def database_url(self) -> str:
-        return f"postgresql+psycopg2://{self.database_user}:{self.database_password}@{self.database_host}:{self.database_port}/{self.database_name}"
+        return (
+            f"postgresql+psycopg2://"
+            f"{self.database_user}:{self.database_password.get_secret_value()}"
+            f"@{self.database_host}:{self.database_port}/{self.database_name}"
+        )
 
     debug: bool = False
     log_level: str = "info"
