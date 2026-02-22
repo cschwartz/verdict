@@ -19,6 +19,8 @@ in
   ];
 
   languages.python = {
+    enable = true;
+    version = pythonVersion;
     uv = {
       enable = true;
       sync.enable = true;
@@ -101,5 +103,15 @@ in
     echo "Run 'just dev' to start the development server"
     echo "Run 'just db-info' to see database configuration"
     echo ""
+  '';
+
+  enterTest = ''
+    until pg_isready -h ${postgres_host} -p ${toString postgres_port} -q; do
+      sleep 0.1
+    done
+    cp .env.sample .env
+    just db-migrate
+    just check
+    just test
   '';
 }
