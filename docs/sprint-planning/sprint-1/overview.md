@@ -1,4 +1,198 @@
-title: Verdict: GRC-Engineering Platform Architecture Document
+[# Sprint 1: Ingestion & Data Foundation
+
+## Context
+
+Sprint 1 establishes the data foundation: database models, pull-based ingestion from mock external services, API key auth with RBAC, and audit logging. Each domain model ticket includes its mock source, ingestion service, and tests — so every ticket is independently E2E testable. Check/TagMapping deferred to Sprint 2, Evidence to Sprint 3.
+
+Ordering: Asset → System → Auth/AuditLog → (OSCAL library research) → Governance models.
+
+Each model ticket generates its own Alembic migration so integration tests can run against real tables immediately.
+
+## Tickets
+
+### 1. Test Infrastructure & Database Fixtures
+**Deps:** None
+
+- `tests/conftest.py`: `db_session` fixture (transaction-rollback against `verdict_test`), `app_client` fixture (`httpx.AsyncClient` with `get_session` override)
+- `tests/factories/__init__.py` (empty)
+- Smoke test: `GET /` returns 200, `SELECT 1` via session
+- **Done:** `db_session` fixture provides a working session connected to test DB; `app_client` fixture can hit endpoints with DB dependency overridden; smoke tests verify both
+
+---
+
+### 2. Base Model Mixins & Gold Source ID Pattern
+**Deps:** T1
+
+- `app/models/base.py`:
+  - `TimestampMixin` — `created_at` (server-default), `updated_at` (auto-update)
+  - `GoldSourceMixin` — `gold_source_id: str`, `gold_source_type: str`, composite unique index
+  - `get_by_gold_source()` utility for dual-path query
+- Tag storage pattern: JSON column storing `list[str]` of dot-delimited tags
+- Unit tests using a temporary test-only model
+- **Done:** `created_at` auto-populated on insert; `updated_at` changes on update; `get_by_gold_source()` returns correct record; duplicate `(gold_source_type, gold_source_id)` raises IntegrityError; tags round-trip as `list[str]` through JSON column
+
+---
+
+### 3. Asset Model, Mock Source & Ingestion
+**Deps:** T2
+
+Full vertical slice for asset inventory:
+- **Model:** `app/models/asset.py` — `Asset` with `TimestampMixin` + `GoldSourceMixin` + `tags` JSON. Fields: id, name, description, tags, timestamps. No dedicated columns for protection_level etc.
+- **Migration:** Alembic migration for Asset table
+- **OpenAPI spec:** `mock-services/specs/asset-inventory.yaml` — GET endpoint returning list of assets with tags
+- **Pydantic schema:** `app/schemas/asset.py` — response model for asset inventory API
+- **Ingestion service:** `app/services/asset_ingestion.py` — pulls from asset inventory endpoint, validates, upserts in single txn. All-or-nothing. Schema mismatch → audit log entry (or logged error until audit log exists — see note below).
+- **Factory:** `tests/factories/asset.py`
+- **Tests:** Unit (mocked HTTP): valid response ingested, invalid rejected, upsert by gold source ID. Integration: Prism mock → ingest → verify in DB.
+- **Done:** Ingestion service fetches from mock endpoint and persists Assets; re-ingestion upserts by gold source ID without duplicates; invalid response is rejected with zero persisted records; Prism serves the OpenAPI spec with valid example data
+
+**Note:** AuditLog model doesn't exist yet at this point. Schema mismatch errors are logged via Python logging. Once T6 lands, ingestion services are updated to also write audit log entries.
+
+---
+
+### 4. System Model, Mock Source & Ingestion
+**Deps:** T3 (needs Asset for FK resolution)
+
+Full vertical slice for CMDB:
+- **Model:** `app/models/system.py` — `System` with `TimestampMixin` + `GoldSourceMixin` + `tags` JSON. Fields: id, hostname, primary_fqdn, `asset_id` FK to Asset (nullable), tags, metadata JSON, timestamps.
+- **Migration:** Alembic migration for System table
+- **OpenAPI spec:** `mock-services/specs/cmdb.yaml` — GET endpoint returning list of systems with tags + `asset_gold_source_id`
+- **Pydantic schema:** `app/schemas/cmdb.py`
+- **Ingestion service:** `app/services/cmdb_ingestion.py` — pulls from CMDB endpoint, validates, resolves `asset_gold_source_id` → Asset FK, upserts. All-or-nothing. Unresolvable asset ref → entire pull rejected.
+- **Factory:** `tests/factories/system.py`
+- **Tests:** Unit + integration. Verify asset linking, FK resolution, rejection on bad asset ref.
+- **Done:** Ingestion service fetches from mock CMDB and persists Systems; each System is linked to its Asset via resolved gold source ID; unresolvable asset reference rejects the entire payload with zero persisted records; upsert works on re-ingestion
+
+---
+
+### 5. User, Role & Permission Models
+**Deps:** T2
+
+- **Model:** `app/models/user.py` — `User` (id, username, email, `api_key_hash`, is_active, timestamps), `Role`, `Permission` (resource, subresource, action; unique constraint), `UserRole` + `RolePermission` link tables
+- **Migration:** Alembic migration for auth tables
+- **Factory:** `tests/factories/user.py`
+- **Tests:** Create user, assign role, attach permissions, verify link tables
+- **Done:** User can be created and assigned a Role; Role can have Permissions attached; querying a User's permissions traverses User → UserRole → Role → RolePermission → Permission correctly; duplicate permission tuples raise IntegrityError
+
+---
+
+### 6. AuditLog Model
+**Deps:** T2
+
+- **Model:** `app/models/audit_log.py` — `AuditLog` (operation, actor, actor_type enum, timestamp, resource_type, resource_id, before/after JSON, details JSON). Append-only at application layer.
+- **Migration:** Alembic migration for audit_log table
+- **Service:** `app/services/audit.py` — helper to create audit entries, refuses update/delete
+- **Factory:** `tests/factories/audit_log.py`
+- **Tests:** Create entries, verify append-only enforcement
+- **Retrofit:** Update T3/T4 ingestion services to log schema mismatches to audit log
+- **Done:** Audit log entries persist with all fields; update/delete of audit records is refused by the service layer; T3/T4 ingestion services log schema mismatch errors as audit entries
+
+---
+
+### 7. API Key Authentication & RBAC Middleware
+**Deps:** T5
+
+- `app/auth/dependencies.py`: `get_current_user` dependency — validates `X-API-Key` header, resolves User, loads permissions
+- `app/auth/permissions.py`: `require_permission(resource, subresource, action)` dependency factory
+- API keys hashed (stored as `api_key_hash`, never plaintext)
+- Integration tests: valid key → 200, invalid → 401, missing permission → 403
+- **Done:** Valid API key resolves to correct User with loaded permissions; invalid/missing key returns 401; request with valid key but insufficient permissions returns 403; `require_permission()` dependency is composable on any endpoint
+
+mTLS/certificate auth deferred to Sprint 2.
+
+---
+
+### 8. Research: OSCAL Pydantic Library Evaluation
+**Deps:** None (can run in parallel with any ticket)
+
+Research ticket — produces a written recommendation, no code.
+
+**Evaluate:**
+- [oscal-pydantic](https://github.com/RS-Credentive/oscal-pydantic/tree/oscal-pydantic-v2) and any other OSCAL Python libraries
+- **Criteria:**
+  - OSCAL version coverage (catalog, profile, SSP, component-definition?)
+  - Pydantic v2 compatibility (required)
+  - Python 3.14+ compatibility
+  - Library maturity: commit activity, maintainers, issues, test coverage
+  - API quality: usable directly or needs wrapping?
+  - Scope fit: full OSCAL vs. the subset we need (policies, standards, statements)
+  - License compatibility
+- **Alternative:** Rolling our own minimal Pydantic models for just our OSCAL subset
+- **Output:** Written recommendation in `docs/decisions/`
+
+---
+
+### 9. Policy Model
+**Deps:** T2, T8 (research informs model design)
+
+- **Model:** `app/models/policy.py` — `Policy` with `TimestampMixin` + `GoldSourceMixin`. Fields: id, name, description, metadata JSON, timestamps.
+- **Migration:** Alembic migration
+- **Factory + tests:** Create, gold source lookup
+- **Done:** Policy can be created with gold source ID and metadata; `get_by_gold_source()` returns correct Policy; factory produces valid instances
+
+---
+
+### 10. Standard Model
+**Deps:** T9
+
+- **Model:** Add `Standard` to governance models — id, name, description, `policy_id` FK, gold_source_id/type, metadata JSON, timestamps. Cascade delete-orphan from Policy.
+- **Migration**
+- **Factory + tests:** Create with policy parent, FK constraint, cascade
+- **Done:** Standard references its parent Policy via FK; creating a Standard without a valid Policy raises IntegrityError; deleting a Policy cascades to its Standards
+
+---
+
+### 11. Statement Model
+**Deps:** T10
+
+- **Model:** Add `Statement` — id, name, description, `standard_id` FK, gold_source_id/type, metadata JSON, timestamps. Cascade delete-orphan from Standard.
+- **Migration**
+- **Factory + tests:** Full hierarchy (Policy → Standard → Statement), cascade, gold source lookups at each level
+- **Done:** Full Policy → Standard → Statement hierarchy can be created and navigated; cascade delete from Policy removes Standards and Statements; gold source lookup works at each level
+
+---
+
+### 12. OSCAL Mock Source & Ingestion
+**Deps:** T11, T6 (needs full hierarchy + audit log)
+
+- **OpenAPI spec:** `mock-services/specs/grc-oscal.yaml` — GET endpoint returning policies with nested standards/statements
+- **Pydantic schema:** `app/schemas/oscal.py`
+- **Ingestion service:** `app/services/oscal_ingestion.py` — pulls, validates, upserts Policy/Standard/Statement hierarchy in single txn. All-or-nothing. Re-ingestion replaces hierarchy. Schema mismatch → audit log.
+- **Tests:** Unit + integration with Prism mock
+- **Done:** Ingestion service fetches nested OSCAL payload and persists full Policy → Standard → Statement hierarchy; re-ingestion replaces the hierarchy for a given policy; invalid response rejected with zero persisted records; schema mismatch logged to audit log
+
+---
+
+## Dependency Graph
+
+```
+T1: Test Infra
+ │
+ ▼
+T2: Base Mixins              T8: OSCAL Research
+ │                            │
+ ├────┬────┬────┐             │
+ ▼    ▼    ▼    ▼             │
+T3:  T5:  T6:  T9◄───────────┘
+Asset User Audit Policy
+ │    │    │    │
+ ▼    ▼    │    ▼
+T4:  T7:   │  T10: Standard
+Sys  Auth   │    │
+             │    ▼
+             │  T11: Statement
+             │    │
+             └────┤
+                  ▼
+            T12: OSCAL Ingestion
+```
+
+Parallelizable:
+- T3, T5, T6 (all depend only on T2)
+- T4 + T7 (after T3/T5 respectively)
+- T8 anytime
+- T9 after T2 + T8
+](title: Verdict: GRC-Engineering Platform Architecture Document
 
 # Verdict: GRC-Engineering Platform Architecture Document
 
@@ -262,7 +456,7 @@ Each runner is responsible for:
 
 Each piece of evidence should capture:
 - **Check Identification:** (policy, standard, statement, check_id)
-- **System Identification:** (asset, system, hostname, IP, gold-source-id)
+- **System Identification:** (asset, system, hostname, primary-fqdn, gold-source-id)
 - **Execution Metadata:**
   - Timestamp of execution
   - Runner type used
@@ -912,3 +1106,4 @@ The following items are flagged for clarification/implementation during Phase 2 
 - Real-time event-driven check execution (vs. scheduled)
 - ML-based compliance trend prediction, anomaly detection
 - Approach for dealing with compensating controls (potentially library of controls with applicability based on tags)
+)
