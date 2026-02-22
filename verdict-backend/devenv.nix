@@ -102,4 +102,14 @@ in
     echo "Run 'just db-info' to see database configuration"
     echo ""
   '';
+
+  enterTest = ''
+    until pg_isready -h ${postgres_host} -p ${toString postgres_port} -q; do
+      sleep 0.1
+    done
+    cp .env.sample .env
+    just db-migrate
+    just check
+    just test
+  '';
 }
