@@ -3,14 +3,14 @@ name: verdict-backend
 on:
   push:
     paths:
-      - 'verdict-backend/**'
-      - 'shared/**'
-      - '.github/workflows/verdict-backend.yaml'
+      - "verdict-backend/**"
+      - "shared/**"
+      - ".github/workflows/verdict-backend.yaml"
   pull_request:
     paths:
-      - 'verdict-backend/**'
-      - 'shared/**'
-      - '.github/workflows/verdict-backend.yaml'
+      - "verdict-backend/**"
+      - "shared/**"
+      - ".github/workflows/verdict-backend.yaml"
   workflow_dispatch:
 
 jobs:
