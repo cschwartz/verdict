@@ -130,6 +130,10 @@ warn_unused_configs = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
+module = "sqlalchemy_json.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = "tests.*"
 disable_error_code = ["arg-type", "no-untyped-def"]
 
