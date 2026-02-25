@@ -2,7 +2,7 @@ import sqlalchemy as sa
 from sqlmodel import Field, Session, SQLModel, select
 
 
-class GoldSourceMixin:
+class GoldSourceMixin(SQLModel):
     """Mixin for models that are synced from an external gold source.
 
     Provides gold_source_id and gold_source_type columns with a composite
@@ -18,8 +18,8 @@ class GoldSourceMixin:
 
     __table_args__ = (sa.UniqueConstraint("gold_source_type", "gold_source_id"),)
 
-    gold_source_id: str = Field(sa_column=sa.Column(sa.String, index=True, nullable=False))
-    gold_source_type: str = Field(sa_column=sa.Column(sa.String, nullable=False))
+    gold_source_id: str = Field(index=True, nullable=False)
+    gold_source_type: str = Field(nullable=False)
 
     @staticmethod
     def get_by_gold_source[T: SQLModel](

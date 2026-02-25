@@ -135,7 +135,7 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"
-disable_error_code = ["arg-type", "no-untyped-def"]
+disable_error_code = ["no-untyped-def"]
 
 [tool.coverage.run]
 source = ["app"]
@@ -160,6 +160,7 @@ exclude_lines = [
 dev = [
     {include-group = "test"},
     "mypy>=1.19.1",
+    "pyright>=1.1.408",
 ]
 test = [
     "pytest>=9.0.0",

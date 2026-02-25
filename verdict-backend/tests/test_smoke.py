@@ -11,5 +11,5 @@ async def test_root_returns_200(app_client: AsyncClient) -> None:
 
 def test_db_session_executes_query(db_session: Session) -> None:
     """Verify the db_session fixture connects to verdict_test."""
-    result = db_session.exec(text("SELECT 1")).scalar()
+    result = db_session.exec(text("SELECT 1")).scalar()  # type: ignore[call-overload]  # SQLModel stubs don't accept TextClause
     assert result == 1

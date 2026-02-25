@@ -1,7 +1,12 @@
-import sqlalchemy as sa
+from typing import Any, cast
+
 from sqlalchemy_json import MutableJson
-from sqlmodel import Field
+from sqlmodel import Field, SQLModel
 
 
-class TagsMixin:
-    tags: list[str] = Field(sa_column=sa.Column(MutableJson, nullable=False, server_default="[]"))
+class TagsMixin(SQLModel):
+    tags: list[str] = Field(
+        default_factory=list,
+        sa_type=cast("type[Any]", MutableJson),
+        sa_column_kwargs={"nullable": False, "server_default": "[]"},
+    )

@@ -28,6 +28,7 @@ lint:
 # Type check
 type-check:
     uv run mypy app
+    uv run pyright app tests
 
 # Run all code quality checks
 check: format lint type-check
