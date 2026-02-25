@@ -27,6 +27,7 @@ def test_updated_at_changes_on_update(db_session):
     db_session.add(model)
     db_session.flush()
     db_session.refresh(model)
+    assert model.updated_at is not None
     original_updated_at = model.updated_at
 
     time.sleep(0.05)
@@ -35,4 +36,5 @@ def test_updated_at_changes_on_update(db_session):
     db_session.flush()
     db_session.refresh(model)
 
+    assert model.updated_at is not None
     assert model.updated_at > original_updated_at
