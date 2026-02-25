@@ -2,6 +2,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.models.base import GoldSourceMixin
+from app.result import Nothing, Ok, Some
 from tests.models.mixin_test_model import MixinTestModel
 
 
@@ -16,9 +17,17 @@ def test_get_by_gold_source_returns_record(db_session):
 
     result = GoldSourceMixin.get_by_gold_source(db_session, MixinTestModel, "test", "abc-123")
 
-    assert result is not None
-    assert result.id == model.id
-    assert result.name == "findable"
+    assert isinstance(result, Ok)
+    assert isinstance(result.value, Some)
+    assert result.value.value.id == model.id
+    assert result.value.value.name == "findable"
+
+
+def test_get_by_gold_source_returns_nothing(db_session):
+    result = GoldSourceMixin.get_by_gold_source(db_session, MixinTestModel, "test", "nonexistent")
+
+    assert isinstance(result, Ok)
+    assert isinstance(result.value, Nothing)
 
 
 def test_duplicate_gold_source_raises_integrity_error(db_session):
