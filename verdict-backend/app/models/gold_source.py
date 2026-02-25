@@ -46,7 +46,9 @@ class GoldSourceMixin(SQLModel):
                 model_class.gold_source_id == gold_source_id,
             )
             record = session.exec(statement).first()
-        except OperationalError as e:
+        except (
+            OperationalError
+        ) as e:  # intentionally narrow — programming errors (e.g. IntegrityError) should propagate
             if e.orig is not None and e.orig.args:
                 return Err(DBError(message=str(e.orig.args[0])))
             if e.orig is not None:
