@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from dataclasses import dataclass
 from typing import NoReturn, final
 
@@ -12,7 +10,7 @@ class Ok[T]:
     def unwrap(self) -> T:
         return self.value
 
-    def unwrap_or(self, default: object) -> T:
+    def unwrap_or[D](self, default: D) -> T:  # pyright: ignore[reportInvalidTypeVarUse]  # D unused in return but keeps signature consistent with Err.unwrap_or
         return self.value
 
 
@@ -42,7 +40,7 @@ class Some[T]:
     def unwrap(self) -> T:
         return self.value
 
-    def unwrap_or(self, default: object) -> T:
+    def unwrap_or[D](self, default: D) -> T:  # pyright: ignore[reportInvalidTypeVarUse]  # D unused in return but keeps signature consistent with Nothing.unwrap_or
         return self.value
 
 

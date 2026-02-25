@@ -47,7 +47,9 @@ class GoldSourceMixin(SQLModel):
             )
             record = session.exec(statement).first()
         except OperationalError as e:
-            return Err(DBError(message=str(e)))
+            if e.orig is not None:
+                return Err(DBError(message=str(e.orig.args[0])))
+            return Err(DBError(message="unknown database error"))
 
         if record is None:
             return Ok(Nothing())
