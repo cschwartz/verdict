@@ -1,5 +1,9 @@
 import sqlalchemy as sa
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, select
+
+from app.errors import DBError
+from app.result import Err, Nothing, Ok, Option, Result, Some
 
 
 class GoldSourceMixin(SQLModel):
@@ -27,19 +31,31 @@ class GoldSourceMixin(SQLModel):
         model_class: type[T],
         gold_source_type: str,
         gold_source_id: str,
-    ) -> T | None:
+    ) -> Result[Option[T], DBError]:
         """Query a model by its external gold source reference.
 
-        Returns the matching record, or None if no record matches the given
-        gold_source_type and gold_source_id. Does not catch database errors --
-        callers are responsible for handling connection or operational errors
-        from the session.
+        Returns ``Ok(Some(record))`` on success, ``Ok(Nothing())`` when no
+        record matches, or ``Err(DBError(...))`` on database operational errors.
         """
         if not issubclass(model_class, GoldSourceMixin):
             raise TypeError(f"{model_class.__name__} does not use GoldSourceMixin")
 
-        statement = select(model_class).where(
-            model_class.gold_source_type == gold_source_type,
-            model_class.gold_source_id == gold_source_id,
-        )
-        return session.exec(statement).first()
+        try:
+            statement = select(model_class).where(
+                model_class.gold_source_type == gold_source_type,
+                model_class.gold_source_id == gold_source_id,
+            )
+            record = session.exec(statement).first()
+        except (
+            OperationalError
+        ) as e:  # intentionally narrow — programming errors (e.g. IntegrityError) should propagate
+            if e.orig is not None and e.orig.args:
+                return Err(DBError(message=str(e.orig.args[0])))
+            if e.orig is not None:
+                return Err(DBError(message=str(e.orig)))
+            return Err(DBError(message="unknown database error"))
+
+        if record is None:
+            return Ok(Nothing())
+
+        return Ok(Some(record))
