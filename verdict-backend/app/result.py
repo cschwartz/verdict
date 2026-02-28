@@ -1,7 +1,12 @@
+import logging
 from dataclasses import dataclass
 from typing import NoReturn, final
 
 from fastapi import HTTPException
+
+from app.errors import AppError
+
+logger = logging.getLogger(__name__)
 
 
 @final
@@ -62,7 +67,29 @@ class Nothing:
 type Option[T] = Some[T] | Nothing
 
 
+def _raise_for_err(error: object, *, status: int) -> NoReturn:
+    """Log detail and raise an HTTPException with the safe message."""
+    if isinstance(error, AppError):
+        logger.error("%s", error.detail)
+        raise HTTPException(status_code=status, detail=error.message)
+    raise HTTPException(status_code=status, detail="Internal server error")
+
+
 def unwrap_or_raise[T, E](
+    result: Result[T, E],
+    *,
+    err_status: int = 503,
+) -> T:
+    """Unwrap a ``Result[T, E]`` or raise an ``HTTPException``.
+
+    Raises *err_status* for ``Err``.
+    """
+    if isinstance(result, Err):
+        _raise_for_err(result.value, status=err_status)
+    return result.value
+
+
+def unwrap_optional_or_raise[T, E](
     result: Result[Option[T], E],
     *,
     err_status: int = 503,
@@ -74,7 +101,7 @@ def unwrap_or_raise[T, E](
     Raises *err_status* for ``Err`` and *not_found_status* for ``Nothing``.
     """
     if isinstance(result, Err):
-        raise HTTPException(status_code=err_status, detail=str(result))
+        _raise_for_err(result.value, status=err_status)
     match result.value:
         case Some(value):
             return value

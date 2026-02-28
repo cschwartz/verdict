@@ -29,13 +29,13 @@ def fetch_index(
         response = client.get(url)
         response.raise_for_status()
     except httpx.HTTPError as e:
-        return Err(FetchError(url=url, message=str(e)))
+        return Err(FetchError(url=url, raw=str(e)))
 
     try:
         items = _index_adapter.validate_json(response.content)
     except PydanticValidationError as e:
         logger.error("Schema mismatch from asset inventory index: %s", e)
-        return Err(AppValidationError(message=str(e)))
+        return Err(AppValidationError(raw=str(e)))
 
     return Ok(items)
 
@@ -51,13 +51,13 @@ def fetch_detail(
         response = client.get(detail_url)
         response.raise_for_status()
     except httpx.HTTPError as e:
-        return Err(FetchError(url=detail_url, message=str(e)))
+        return Err(FetchError(url=detail_url, raw=str(e)))
 
     try:
         detail = _detail_adapter.validate_json(response.content)
     except PydanticValidationError as e:
         logger.error("Schema mismatch from asset inventory detail %s: %s", item_id, e)
-        return Err(AppValidationError(message=str(e)))
+        return Err(AppValidationError(raw=str(e)))
 
     return Ok(detail)
 
