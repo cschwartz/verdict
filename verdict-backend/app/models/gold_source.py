@@ -5,6 +5,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, select
 
 from app.errors import DBError, db_error_from
+from app.models.base_model import BaseModel
 from app.result import Err, Nothing, Ok, Option, Result, Some
 
 
@@ -41,7 +42,7 @@ class GoldSourceMixin(SQLModel):
         return sa.Index(f"ix_{table_name}_gold_source", "gold_source_type", "gold_source_id")
 
     @staticmethod
-    def get_by_gold_source[T: SQLModel](
+    def get_by_gold_source[T: BaseModel](
         session: Session,
         model_class: type[T],
         gold_source_type: str,
