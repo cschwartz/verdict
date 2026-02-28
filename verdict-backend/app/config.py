@@ -2,15 +2,24 @@
 from functools import lru_cache
 
 from pydantic import Field, SecretStr
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="allow",
+    )
+
     database_host: str = Field(default=...)
     database_port: int = Field(default=...)
     database_name: str = Field(default=...)
     database_user: str = Field(default=...)
     database_password: SecretStr = Field(default=...)
+
+    asset_inventory_url: str = Field(default=...)
 
     @property
     def database_url(self) -> str:
@@ -22,12 +31,6 @@ class Settings(BaseSettings):
 
     debug: bool = False
     log_level: str = "info"
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
-        extra = "allow"
 
 
 @lru_cache

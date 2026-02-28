@@ -742,6 +742,18 @@ wheels = [
 ]
 
 [[package]]
+name = "respx"
+version = "0.22.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f4/7c/96bd0bc759cf009675ad1ee1f96535edcb11e9666b985717eb8c87192a95/respx-0.22.0.tar.gz", hash = "sha256:3c8924caa2a50bd71aefc07aa812f2466ff489f1848c96e954a5362d17095d91", size = 28439, upload-time = "2024-12-19T22:33:59.374Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8e/67/afbb0978d5399bc9ea200f1d4489a23c9a1dad4eee6376242b8182389c79/respx-0.22.0-py2.py3-none-any.whl", hash = "sha256:631128d4c9aba15e56903fb5f66fb1eff412ce28dd387ca3a81339e52dbd3ad0", size = 25127, upload-time = "2024-12-19T22:33:57.837Z" },
+]
+
+[[package]]
 name = "rich"
 version = "14.3.3"
 source = { registry = "https://pypi.org/simple" }
@@ -944,6 +956,7 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "psycopg2-binary" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
@@ -973,6 +986,7 @@ test = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "respx" },
 ]
 
 [package.dev-dependencies]
@@ -985,6 +999,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "respx" },
 ]
 test = [
     { name = "factory-boy" },
@@ -993,6 +1008,7 @@ test = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
+    { name = "respx" },
 ]
 
 [package.metadata]
@@ -1001,6 +1017,7 @@ requires-dist = [
     { name = "factory-boy", marker = "extra == 'test'", specifier = ">=3.3.0" },
     { name = "faker", marker = "extra == 'test'", specifier = ">=30.0.0" },
     { name = "fastapi", specifier = ">=0.115.0" },
+    { name = "httpx", specifier = ">=0.28.0" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.28.0" },
     { name = "httpx", marker = "extra == 'test'", specifier = ">=0.28.0" },
     { name = "ipython", marker = "extra == 'dev'", specifier = ">=8.12.0" },
@@ -1015,6 +1032,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=6.0.0" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "respx", marker = "extra == 'test'", specifier = ">=0.22.0" },
     { name = "rich", marker = "extra == 'dev'", specifier = ">=13.0.0" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
     { name = "sqlalchemy-json", specifier = ">=0.7.0" },
@@ -1033,6 +1051,7 @@ dev = [
     { name = "pytest", specifier = ">=9.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "respx", specifier = ">=0.22.0" },
 ]
 test = [
     { name = "factory-boy", specifier = ">=3.3.0" },
@@ -1041,6 +1060,7 @@ test = [
     { name = "pytest", specifier = ">=9.0.0" },
     { name = "pytest-asyncio", specifier = ">=0.24.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "respx", specifier = ">=0.22.0" },
 ]
 
 [[package]]

@@ -1,6 +1,5 @@
 imports:
   - /shared
-  - /mock-services
 inputs:
   nixpkgs:
     url: github:cachix/devenv-nixpkgs/rolling

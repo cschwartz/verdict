@@ -1,29 +1,44 @@
+from enum import StrEnum
+
 import sqlalchemy as sa
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, select
 
-from app.errors import DBError
+from app.errors import DBError, db_error_from
 from app.result import Err, Nothing, Ok, Option, Result, Some
+
+
+class GoldSourceType(StrEnum):
+    ASSET_INVENTORY = "asset-inventory"
 
 
 class GoldSourceMixin(SQLModel):
     """Mixin for models that are synced from an external gold source.
 
     Provides gold_source_id and gold_source_type columns with a composite
-    unique constraint. Models that need additional __table_args__ must
-    unpack this mixin's args::
+    unique constraint. Models should unpack the mixin's ``__table_args__``
+    and add the composite index via ``gold_source_index``::
 
         class MyModel(GoldSourceMixin, SQLModel, table=True):
             __table_args__ = (
                 *GoldSourceMixin.__table_args__,
-                sa.Index("ix_my_model_custom", "some_field"),
+                GoldSourceMixin.gold_source_index("my_model"),
             )
     """
 
     __table_args__ = (sa.UniqueConstraint("gold_source_type", "gold_source_id"),)
 
-    gold_source_id: str = Field(index=True, nullable=False)
+    gold_source_id: str = Field(nullable=False)
     gold_source_type: str = Field(nullable=False)
+
+    @classmethod
+    def gold_source_index(cls, table_name: str) -> sa.Index:
+        """Create a composite index on (gold_source_type, gold_source_id).
+
+        Each model must provide its own table name so the index gets a
+        unique name (SQLAlchemy requires index names to be table-specific).
+        """
+        return sa.Index(f"ix_{table_name}_gold_source", "gold_source_type", "gold_source_id")
 
     @staticmethod
     def get_by_gold_source[T: SQLModel](
@@ -49,11 +64,7 @@ class GoldSourceMixin(SQLModel):
         except (
             OperationalError
         ) as e:  # intentionally narrow — programming errors (e.g. IntegrityError) should propagate
-            if e.orig is not None and e.orig.args:
-                return Err(DBError(message=str(e.orig.args[0])))
-            if e.orig is not None:
-                return Err(DBError(message=str(e.orig)))
-            return Err(DBError(message="unknown database error"))
+            return Err(db_error_from(e))
 
         if record is None:
             return Ok(Nothing())

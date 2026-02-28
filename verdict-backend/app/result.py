@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import NoReturn, final
 
+from fastapi import HTTPException
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -58,3 +60,23 @@ class Nothing:
 
 
 type Option[T] = Some[T] | Nothing
+
+
+def unwrap_or_raise[T, E](
+    result: Result[Option[T], E],
+    *,
+    err_status: int = 503,
+    not_found_status: int = 404,
+    not_found_detail: str = "Not found",
+) -> T:
+    """Unwrap a ``Result[Option[T], E]`` or raise an ``HTTPException``.
+
+    Raises *err_status* for ``Err`` and *not_found_status* for ``Nothing``.
+    """
+    if isinstance(result, Err):
+        raise HTTPException(status_code=err_status, detail=str(result))
+    match result.value:
+        case Some(value):
+            return value
+        case _:
+            raise HTTPException(status_code=not_found_status, detail=not_found_detail)

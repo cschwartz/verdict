@@ -1,0 +1,10 @@
+set fallback
+set dotenv-load
+
+# List available recipes
+default:
+    @just --list
+
+# Start all mock services
+mock:
+    uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010

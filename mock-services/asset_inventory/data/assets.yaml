@@ -1,0 +1,25 @@
+- id: "SVC-001"
+  name: "Online Banking Portal"
+  description: "Customer-facing online banking application and associated backend services"
+  tags:
+    - "protection-level:high"
+    - "business-unit:retail-banking"
+    - "threat-classification:public-facing"
+
+- id: "SVC-002"
+  name: "Customer CRM"
+  description: "Internal CRM system for managing customer relationships and support cases"
+  tags:
+    - "protection-level:medium"
+    - "business-unit:customer-service"
+    - "threat-classification:internal"
+    - "compliance:gdpr"
+
+- id: "SVC-003"
+  name: "Payment Processing Engine"
+  description: "Core payment processing service handling card transactions and settlements"
+  tags:
+    - "protection-level:critical"
+    - "business-unit:payments"
+    - "threat-classification:public-facing"
+    - "compliance:pci-dss"
