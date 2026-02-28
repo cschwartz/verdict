@@ -137,6 +137,15 @@ in
     just check
     DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m 'not e2e'
 
+    # Cleanup background processes on any exit
+    MOCK_PID=
+    APP_PID=
+    cleanup() {
+      kill $APP_PID $MOCK_PID 2>/dev/null || true
+      wait $APP_PID $MOCK_PID 2>/dev/null || true
+    }
+    trap cleanup EXIT INT TERM
+
     # Start mock service
     echo "Starting mock asset inventory..."
     cd $MOCK_SERVICES_DIR && uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010 &
@@ -148,7 +157,6 @@ in
       retries=$((retries + 1))
       if [ $retries -ge 30 ]; then
         echo "ERROR: Mock service failed to start"
-        kill $MOCK_PID 2>/dev/null || true
         exit 1
       fi
       sleep 1
@@ -166,7 +174,6 @@ in
       retries=$((retries + 1))
       if [ $retries -ge 30 ]; then
         echo "ERROR: Verdict app failed to start"
-        kill $APP_PID $MOCK_PID 2>/dev/null || true
         exit 1
       fi
       sleep 1
@@ -177,10 +184,5 @@ in
     just db-test-reset
     DATABASE_NAME=${database_name}_test just db-migrate
     just test-e2e
-    E2E_EXIT=$?
-
-    kill $APP_PID $MOCK_PID 2>/dev/null || true
-    wait $APP_PID $MOCK_PID 2>/dev/null || true
-    exit $E2E_EXIT
   '';
 }
