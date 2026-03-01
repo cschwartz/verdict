@@ -146,7 +146,7 @@ def test_ingest_valid_response(db_session):
     assert isinstance(result, Ok)
     assert len(result.value) == 2
 
-    assets = list(db_session.exec(select(Asset)).all())
+    assets = list(db_session.exec(select(Asset).order_by(Asset.gold_source_id)).all())
     assert len(assets) == 2
     assert assets[0].name == "Online Banking Portal"
     assert assets[0].gold_source_id == "SVC-001"
