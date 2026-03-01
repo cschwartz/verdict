@@ -3,9 +3,10 @@ import logging
 import httpx
 from pydantic import TypeAdapter
 from pydantic import ValidationError as PydanticValidationError
+from sqlalchemy.exc import OperationalError
 from sqlmodel import Session
 
-from app.errors import DBError, FetchError, IngestionError
+from app.errors import DBError, FetchError, IngestionError, db_error_from
 from app.errors import ValidationError as AppValidationError
 from app.models.asset import Asset
 from app.models.gold_source import GoldSourceMixin, GoldSourceType
@@ -99,7 +100,10 @@ def ingest_assets(
             return Err(upsert_result.value)
         assets.append(upsert_result.value)
 
-    session.flush()
+    try:
+        session.flush()
+    except OperationalError as e:
+        return Err(db_error_from(e))
     return Ok(assets)
 
 
