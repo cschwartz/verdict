@@ -1,6 +1,6 @@
 import pytest
 
-from app.errors import DBError, DuplicateError
+from app.errors import DBError, DuplicateError, FetchError, ValidationError
 from app.result import Err, Nothing, Ok, Option, Result, Some
 
 
@@ -21,7 +21,7 @@ class TestErr:
         assert Err("bad").unwrap_or(99) == 99
 
     def test_str_delegates_to_value(self):
-        assert str(Err(DBError(message="connection lost"))) == "database error: connection lost"
+        assert str(Err(DBError(statement=None, raw="connection lost"))) == "database error"
 
 
 class TestSome:
@@ -45,14 +45,51 @@ class TestNothing:
 
 
 class TestDBError:
-    def test_str(self):
-        assert str(DBError(message="connection lost")) == "database error: connection lost"
+    def test_message_is_safe(self):
+        err = DBError(statement="SELECT * FROM users WHERE id = :id_1", raw="connection lost")
+        assert err.message == "database error"
+
+    def test_detail_includes_statement(self):
+        err = DBError(statement="SELECT * FROM users WHERE id = :id_1", raw="connection lost")
+        assert err.detail == "database error: SELECT * FROM users WHERE id = :id_1"
+
+    def test_detail_without_statement(self):
+        err = DBError(statement=None, raw="connection lost")
+        assert err.detail == "database error"
+
+    def test_str_returns_message(self):
+        err = DBError(statement="SELECT 1", raw="connection lost")
+        assert str(err) == "database error"
 
 
 class TestDuplicateError:
-    def test_str(self):
-        err = DuplicateError(model="User", key="email:a@b.com", detail="already exists")
-        assert str(err) == "duplicate User: email:a@b.com (already exists)"
+    def test_message_is_safe(self):
+        err = DuplicateError(model="User", key="email:a@b.com")
+        assert err.message == "duplicate User"
+
+    def test_detail_includes_key(self):
+        err = DuplicateError(model="User", key="email:a@b.com")
+        assert err.detail == "duplicate User: email:a@b.com"
+
+
+class TestFetchError:
+    def test_message_is_safe(self):
+        err = FetchError(url="http://example.com/api", raw="500 Internal Server Error")
+        assert err.message == "upstream service error"
+
+    def test_detail_includes_url_and_raw(self):
+        err = FetchError(url="http://example.com/api", raw="500 Internal Server Error")
+        assert err.detail == "fetch error (http://example.com/api): 500 Internal Server Error"
+
+
+class TestValidationError:
+    def test_message_is_safe(self):
+        err = ValidationError(raw="field 'name' is required")
+        assert err.message == "validation error"
+
+    def test_detail_includes_raw(self):
+        err = ValidationError(raw="field 'name' is required")
+        assert err.detail == "validation error: field 'name' is required"
 
 
 class TestMatchNarrowing:
@@ -113,9 +150,9 @@ class TestMatchNarrowing:
                 pytest.fail("Should not match Err")
 
     def test_match_composed_err(self):
-        result: Result[Option[int], DBError] = Err(DBError(message="connection lost"))
+        result: Result[Option[int], DBError] = Err(DBError(statement=None, raw="connection lost"))
         match result:
             case Ok():
                 pytest.fail("Should not match Ok")
             case Err(value=err):
-                assert err.message == "connection lost"
+                assert err.raw == "connection lost"

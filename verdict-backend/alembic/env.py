@@ -5,6 +5,7 @@ from logging.config import fileConfig
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
+import app.models  # noqa: F401  # register models for autogenerate
 from alembic import context
 from app.config import get_settings
 

@@ -15,5 +15,7 @@ class BaseModelFactory(factory.alchemy.SQLAlchemyModelFactory):
 
     @classmethod
     def set_session(cls, session: Session) -> None:
-        """Bind all factories to the given test session."""
+        """Bind all factories (including subclasses) to the given test session."""
         cls._meta.sqlalchemy_session = session  # type: ignore[attr-defined]  # factory-boy stubs don't expose this
+        for subclass in cls.__subclasses__():
+            subclass._meta.sqlalchemy_session = session  # type: ignore[attr-defined]
