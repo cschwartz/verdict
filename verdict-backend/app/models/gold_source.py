@@ -17,29 +17,13 @@ class GoldSourceMixin(SQLModel):
     """Mixin for models that are synced from an external gold source.
 
     Provides gold_source_id and gold_source_type columns with a composite
-    unique constraint. Models should unpack the mixin's ``__table_args__``
-    and add the composite index via ``gold_source_index``::
-
-        class MyModel(GoldSourceMixin, SQLModel, table=True):
-            __table_args__ = (
-                *GoldSourceMixin.__table_args__,
-                GoldSourceMixin.gold_source_index("my_model"),
-            )
+    unique constraint (which also serves as an index for lookups).
     """
 
     __table_args__ = (sa.UniqueConstraint("gold_source_type", "gold_source_id"),)
 
     gold_source_id: str = Field(nullable=False)
     gold_source_type: str = Field(nullable=False)
-
-    @classmethod
-    def gold_source_index(cls, table_name: str) -> sa.Index:
-        """Create a composite index on (gold_source_type, gold_source_id).
-
-        Each model must provide its own table name so the index gets a
-        unique name (SQLAlchemy requires index names to be table-specific).
-        """
-        return sa.Index(f"ix_{table_name}_gold_source", "gold_source_type", "gold_source_id")
 
     @staticmethod
     def get_by_gold_source[T: BaseModel](
