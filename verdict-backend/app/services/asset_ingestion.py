@@ -1,4 +1,5 @@
 import logging
+from urllib.parse import quote
 
 import httpx
 from pydantic import TypeAdapter
@@ -6,8 +7,7 @@ from pydantic import ValidationError as PydanticValidationError
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Session
 
-from app.errors import DBError, FetchError, IngestionError, db_error_from
-from app.errors import ValidationError as AppValidationError
+from app.errors import DBError, FetchError, IngestionError, ValidationError, db_error_from
 from app.models.asset import Asset
 from app.models.gold_source import GoldSourceMixin, GoldSourceType
 from app.result import Err, Ok, Result, Some
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 _index_adapter = TypeAdapter(list[AssetIndexItem])
 _detail_adapter = TypeAdapter(AssetDetail)
 
-type SourceError = FetchError | AppValidationError
+type SourceError = FetchError | ValidationError
 
 
 def fetch_index(
@@ -36,7 +36,7 @@ def fetch_index(
         items = _index_adapter.validate_json(response.content)
     except PydanticValidationError as e:
         logger.error("Schema mismatch from asset inventory index: %s", e)
-        return Err(AppValidationError(raw=str(e)))
+        return Err(ValidationError(raw=str(e)))
 
     return Ok(items)
 
@@ -47,7 +47,7 @@ def fetch_detail(
     item_id: str,
 ) -> Result[AssetDetail, SourceError]:
     """Fetch a single asset's detail from the external inventory."""
-    detail_url = f"{url}/{item_id}"
+    detail_url = f"{url}/{quote(item_id, safe='')}"
     try:
         response = client.get(detail_url)
         response.raise_for_status()
@@ -58,7 +58,7 @@ def fetch_detail(
         detail = _detail_adapter.validate_json(response.content)
     except PydanticValidationError as e:
         logger.error("Schema mismatch from asset inventory detail %s: %s", item_id, e)
-        return Err(AppValidationError(raw=str(e)))
+        return Err(ValidationError(raw=str(e)))
 
     return Ok(detail)
 
