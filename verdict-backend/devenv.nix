@@ -148,9 +148,8 @@ in
 
     # Start mock service
     echo "Starting mock asset inventory..."
-    cd $MOCK_SERVICES_DIR && uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010 &
+    (cd $MOCK_SERVICES_DIR && exec uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010) &
     MOCK_PID=$!
-    cd ${config.devenv.root}
 
     retries=0
     until curl -sf http://localhost:4010/assets > /dev/null 2>&1; do
@@ -165,8 +164,8 @@ in
 
     # Start verdict app against test DB
     echo "Starting verdict app..."
-    DATABASE_NAME=${database_name}_test ASSET_INVENTORY_URL=http://localhost:4010/assets \
-      uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+    (DATABASE_NAME=${database_name}_test ASSET_INVENTORY_URL=http://localhost:4010/assets \
+      exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000) &
     APP_PID=$!
 
     retries=0
