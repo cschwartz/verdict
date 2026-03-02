@@ -18,6 +18,9 @@ in
     pgcli
   ];
 
+  # Override mock-services path for the cross-project import.
+  env.MOCK_SERVICES_DIR = lib.mkForce "${config.devenv.root}/../mock-services";
+
   languages.python = {
     enable = true;
     version = pythonVersion;
@@ -69,6 +72,22 @@ in
     };
   };
 
+  processes.verdict-app = {
+    exec = "uv run uvicorn app.main:app --host 0.0.0.0 --port 8000";
+    process-compose = {
+      disabled = true;
+      readiness_probe = {
+        http_get = {
+          host = "localhost";
+          port = 8000;
+          path = "/";
+        };
+        initial_delay_seconds = 2;
+        period_seconds = 2;
+      };
+    };
+  };
+
   git-hooks.hooks = {
     ruff.enable = true;
     ruff-format.enable = true;
@@ -83,6 +102,7 @@ in
     DATABASE_USER=${postgres_user}
     DATABASE_PASSWORD=${postgres_password}
     DATABASE_URL=postgresql://${postgres_user}:${postgres_password}@${postgres_host}:${toString postgres_port}/${database_name}
+    ASSET_INVENTORY_URL=http://localhost:4010/assets
     EOF
     echo "Generated .env.sample"
   '';
@@ -109,9 +129,59 @@ in
     until pg_isready -h ${postgres_host} -p ${toString postgres_port} -q; do
       sleep 0.1
     done
+    gen-env-sample
     cp .env.sample .env
     just db-migrate
+    just db-test-reset
+    DATABASE_NAME=${database_name}_test just db-migrate
     just check
-    just test
+    DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m 'not e2e'
+
+    # Cleanup background processes on any exit
+    MOCK_PID=
+    APP_PID=
+    cleanup() {
+      kill $APP_PID $MOCK_PID 2>/dev/null || true
+      wait $APP_PID $MOCK_PID 2>/dev/null || true
+    }
+    trap cleanup EXIT INT TERM
+
+    # Start mock service
+    echo "Starting mock asset inventory..."
+    (cd $MOCK_SERVICES_DIR && exec uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010) &
+    MOCK_PID=$!
+
+    retries=0
+    until curl -sf http://localhost:4010/assets > /dev/null 2>&1; do
+      retries=$((retries + 1))
+      if [ $retries -ge 30 ]; then
+        echo "ERROR: Mock service failed to start"
+        exit 1
+      fi
+      sleep 1
+    done
+    echo "Mock service ready"
+
+    # Start verdict app against test DB
+    echo "Starting verdict app..."
+    (DATABASE_NAME=${database_name}_test ASSET_INVENTORY_URL=http://localhost:4010/assets \
+      exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000) &
+    APP_PID=$!
+
+    retries=0
+    until curl -sf http://localhost:8000/ > /dev/null 2>&1; do
+      retries=$((retries + 1))
+      if [ $retries -ge 30 ]; then
+        echo "ERROR: Verdict app failed to start"
+        exit 1
+      fi
+      sleep 1
+    done
+    echo "Verdict app ready"
+
+    # Reset test DB and run E2E tests
+    just db-test-reset
+    DATABASE_NAME=${database_name}_test just db-migrate
+    just test-e2e
   '';
 }

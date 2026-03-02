@@ -1,0 +1,10 @@
+[project]
+name = "verdict-mock-services"
+version = "0.1.0"
+description = "Mock API servers for local development"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.34.0",
+    "pyyaml>=6.0",
+]

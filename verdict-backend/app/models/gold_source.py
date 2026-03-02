@@ -1,32 +1,32 @@
+from enum import StrEnum
+
 import sqlalchemy as sa
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, select
 
-from app.errors import DBError
+from app.errors import DBError, db_error_from
+from app.models.base_model import BaseModel
 from app.result import Err, Nothing, Ok, Option, Result, Some
+
+
+class GoldSourceType(StrEnum):
+    ASSET_INVENTORY = "asset-inventory"
 
 
 class GoldSourceMixin(SQLModel):
     """Mixin for models that are synced from an external gold source.
 
     Provides gold_source_id and gold_source_type columns with a composite
-    unique constraint. Models that need additional __table_args__ must
-    unpack this mixin's args::
-
-        class MyModel(GoldSourceMixin, SQLModel, table=True):
-            __table_args__ = (
-                *GoldSourceMixin.__table_args__,
-                sa.Index("ix_my_model_custom", "some_field"),
-            )
+    unique constraint (which also serves as an index for lookups).
     """
 
     __table_args__ = (sa.UniqueConstraint("gold_source_type", "gold_source_id"),)
 
-    gold_source_id: str = Field(index=True, nullable=False)
+    gold_source_id: str = Field(nullable=False)
     gold_source_type: str = Field(nullable=False)
 
     @staticmethod
-    def get_by_gold_source[T: SQLModel](
+    def get_by_gold_source[T: BaseModel](
         session: Session,
         model_class: type[T],
         gold_source_type: str,
@@ -49,11 +49,7 @@ class GoldSourceMixin(SQLModel):
         except (
             OperationalError
         ) as e:  # intentionally narrow — programming errors (e.g. IntegrityError) should propagate
-            if e.orig is not None and e.orig.args:
-                return Err(DBError(message=str(e.orig.args[0])))
-            if e.orig is not None:
-                return Err(DBError(message=str(e.orig)))
-            return Err(DBError(message="unknown database error"))
+            return Err(db_error_from(e))
 
         if record is None:
             return Ok(Nothing())

@@ -13,6 +13,10 @@ dev:
 test *ARGS:
     DATABASE_NAME=$DATABASE_NAME_TEST uv run pytest --disable-plugin-autoload -p asyncio {{ARGS}}
 
+# Run end-to-end tests (requires services to be running)
+test-e2e *ARGS:
+    DATABASE_NAME=$DATABASE_NAME_TEST uv run pytest --disable-plugin-autoload -p asyncio -m e2e {{ARGS}}
+
 # Run tests with coverage
 test-cov *ARGS:
     DATABASE_NAME=$DATABASE_NAME_TEST uv run pytest --disable-plugin-autoload -p asyncio -p pytest_cov --cov=app --cov-report=html --cov-report=term-missing {{ARGS}}
@@ -45,16 +49,16 @@ db-migrate-create message:
 db-reset:
     #!/usr/bin/env bash
     echo "Resetting database..."
-    dropdb --if-exists "$PGDATABASE"
-    createdb "$PGDATABASE"
+    dropdb --if-exists "$DATABASE_NAME"
+    createdb "$DATABASE_NAME"
     echo "Database reset complete. Run 'just db-migrate' to apply migrations."
 
 # Reset the test database
 db-test-reset:
     #!/usr/bin/env bash
     echo "Resetting test database..."
-    dropdb --if-exists "$PGDATABASE_TEST"
-    createdb "$PGDATABASE_TEST"
+    dropdb --if-exists "$DATABASE_NAME_TEST"
+    createdb "$DATABASE_NAME_TEST"
     echo "Test database reset complete."
 
 # Open database shell (pgcli)
@@ -65,12 +69,12 @@ db-shell:
 db-info:
     #!/usr/bin/env bash
     echo "Database Configuration:"
-    echo "  DATABASE_URL: $DATABASE_URL"
-    echo "  PGHOST:       $PGHOST"
-    echo "  PGPORT:       $PGPORT"
-    echo "  PGDATABASE:   $PGDATABASE"
-    echo "  PGUSER:       $PGUSER"
-    echo "  Test DB:      $PGDATABASE_TEST"
+    echo "  DATABASE_URL:  $DATABASE_URL"
+    echo "  DATABASE_HOST: $DATABASE_HOST"
+    echo "  DATABASE_PORT: $DATABASE_PORT"
+    echo "  DATABASE_NAME: $DATABASE_NAME"
+    echo "  DATABASE_USER: $DATABASE_USER"
+    echo "  Test DB:       $DATABASE_NAME_TEST"
 
 # Set up the full development environment
 setup:

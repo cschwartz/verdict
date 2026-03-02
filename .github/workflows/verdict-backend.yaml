@@ -4,11 +4,13 @@ on:
   push:
     paths:
       - "verdict-backend/**"
+      - "mock-services/**"
       - "shared/**"
       - ".github/workflows/verdict-backend.yaml"
   pull_request:
     paths:
       - "verdict-backend/**"
+      - "mock-services/**"
       - "shared/**"
       - ".github/workflows/verdict-backend.yaml"
   workflow_dispatch:
