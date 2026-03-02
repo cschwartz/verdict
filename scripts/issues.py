@@ -310,9 +310,23 @@ def push(
     metadata, body = _parse_issue_file(current_issue)
     number = metadata.get("number")
 
+    local_labels = set(metadata.get("labels", []))
+    local_assignees = set(metadata.get("assignees", []))
+
     cmd: list[str] = []
     if number:
         cmd = [_bin("gh"), "issue", "edit", str(number)]
+
+        existing = _fetch_issue(owner, name, number)
+        remote_labels = {n["name"] for n in existing.get("labels", {}).get("nodes", [])}
+        remote_assignees = {
+            n["login"] for n in existing.get("assignees", {}).get("nodes", [])
+        }
+
+        for label in remote_labels - local_labels:
+            cmd.extend(["--remove-label", label])
+        for assignee in remote_assignees - local_assignees:
+            cmd.extend(["--remove-assignee", assignee])
     else:
         cmd = [_bin("gh"), "issue", "create"]
 
@@ -320,10 +334,10 @@ def push(
     if title:
         cmd.extend(["--title", title])
 
-    for label in metadata.get("labels", []):
+    for label in local_labels:
         cmd.extend(["--label", label])
 
-    for assignee in metadata.get("assignees", []):
+    for assignee in local_assignees:
         cmd.extend(["--assignee", assignee])
 
     milestone = metadata.get("milestone")
