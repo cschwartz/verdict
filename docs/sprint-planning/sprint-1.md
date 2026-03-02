@@ -1,4 +1,4 @@
-[# Sprint 1: Ingestion & Data Foundation
+# Sprint 1: Ingestion & Data Foundation
 
 ## Context
 
