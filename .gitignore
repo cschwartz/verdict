@@ -55,3 +55,6 @@ devenv.local.nix
 
 # AI tooling
 .claude
+
+# Local issue sync
+.local-docs/
