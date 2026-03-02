@@ -165,6 +165,18 @@ def _issue_to_markdown(issue: dict[str, Any]) -> str:
     return f"---\n{fm}\n---\n\n{body}\n"
 
 
+def _validate_string_list(metadata: dict[str, Any], field: str, path: Path) -> None:
+    if field not in metadata:
+        return
+    value = metadata[field]
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        typer.echo(
+            f"Error: {path} front-matter '{field}' must be a list of strings",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+
 def _parse_issue_file(path: Path) -> tuple[dict[str, Any], str]:
     content = path.read_text()
     if not content.startswith("---"):
@@ -185,6 +197,8 @@ def _parse_issue_file(path: Path) -> tuple[dict[str, Any], str]:
             err=True,
         )
         raise typer.Exit(1)
+    _validate_string_list(metadata, "labels", path)
+    _validate_string_list(metadata, "assignees", path)
     body = parts[2].strip()
     return metadata, body
 
