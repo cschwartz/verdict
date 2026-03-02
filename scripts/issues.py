@@ -203,6 +203,22 @@ def _parse_issue_file(path: Path) -> tuple[dict[str, Any], str]:
     return metadata, body
 
 
+def _validate_graphql_response(resp: dict[str, Any]) -> dict[str, Any]:
+    if "errors" in resp:
+        messages = "; ".join(e.get("message", str(e)) for e in resp["errors"])
+        typer.echo(f"GraphQL error: {messages}", err=True)
+        raise typer.Exit(1)
+    data = resp.get("data")
+    if data is None:
+        typer.echo("GraphQL response missing 'data' field.", err=True)
+        raise typer.Exit(1)
+    repo = data.get("repository")
+    if repo is None:
+        typer.echo("GraphQL response missing 'repository' field.", err=True)
+        raise typer.Exit(1)
+    return repo
+
+
 def _fetch_issue(owner: str, name: str, number: int) -> dict[str, Any]:
     result = subprocess.run(
         [
@@ -224,8 +240,12 @@ def _fetch_issue(owner: str, name: str, number: int) -> dict[str, Any]:
     if result.returncode != 0:
         typer.echo(f"Error fetching issue #{number}: {result.stderr.strip()}", err=True)
         raise typer.Exit(1)
-    data = json.loads(result.stdout)
-    return data["data"]["repository"]["issue"]
+    repo = _validate_graphql_response(json.loads(result.stdout))
+    issue = repo.get("issue")
+    if issue is None:
+        typer.echo(f"Issue #{number} not found.", err=True)
+        raise typer.Exit(1)
+    return issue
 
 
 @app.command()
@@ -268,9 +288,12 @@ def pull(
     for line in result.stdout.strip().splitlines():
         if not line:
             continue
-        page = json.loads(line)
-        nodes = page["data"]["repository"]["issues"]["nodes"]
-        issues.extend(nodes)
+        repo = _validate_graphql_response(json.loads(line))
+        issues_data = repo.get("issues")
+        if issues_data is None:
+            typer.echo("GraphQL response missing 'issues' field.", err=True)
+            raise typer.Exit(1)
+        issues.extend(issues_data.get("nodes", []))
 
     issues_dir.mkdir(parents=True, exist_ok=True)
     for old in issues_dir.glob("*.md"):
