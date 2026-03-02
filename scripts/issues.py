@@ -1,3 +1,4 @@
+#!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.12"
 # dependencies = [
@@ -34,9 +35,18 @@ app = typer.Typer(help=__doc__)
 
 
 @lru_cache
+def _bin(name: str) -> str:
+    path = shutil.which(name)
+    if path is None:
+        typer.echo(f"Error: {name} not found on PATH.", err=True)
+        raise typer.Exit(1)
+    return path
+
+
+@lru_cache
 def _repo_root() -> Path:
     result = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
+        [_bin("git"), "rev-parse", "--show-toplevel"],
         capture_output=True,
         text=True,
     )
@@ -97,12 +107,9 @@ query($owner: String!, $repo: String!, $number: Int!) {
 
 
 def _check_gh() -> None:
-    if shutil.which("gh") is None:
-        typer.echo(
-            "Error: gh CLI not found. Install it: https://cli.github.com/", err=True
-        )
-        raise typer.Exit(1)
-    result = subprocess.run(["gh", "auth", "status"], capture_output=True, text=True)
+    result = subprocess.run(
+        [_bin("gh"), "auth", "status"], capture_output=True, text=True
+    )
     if result.returncode != 0:
         typer.echo("Error: gh is not authenticated. Run: gh auth login", err=True)
         raise typer.Exit(1)
@@ -110,7 +117,7 @@ def _check_gh() -> None:
 
 def _get_repo_owner_and_name() -> tuple[str, str]:
     result = subprocess.run(
-        ["gh", "repo", "view", "--json", "nameWithOwner"],
+        [_bin("gh"), "repo", "view", "--json", "nameWithOwner"],
         capture_output=True,
         text=True,
     )
@@ -169,7 +176,15 @@ def _parse_issue_file(path: Path) -> tuple[dict[str, Any], str]:
     if len(parts) < 3:
         typer.echo(f"Error: {path} has malformed front-matter", err=True)
         raise typer.Exit(1)
-    metadata = yaml.safe_load(parts[1]) or {}
+    metadata = yaml.safe_load(parts[1])
+    if metadata is None:
+        metadata = {}
+    if not isinstance(metadata, dict):
+        typer.echo(
+            f"Error: {path} front-matter must be a YAML mapping, got {type(metadata).__name__}",
+            err=True,
+        )
+        raise typer.Exit(1)
     body = parts[2].strip()
     return metadata, body
 
@@ -177,7 +192,7 @@ def _parse_issue_file(path: Path) -> tuple[dict[str, Any], str]:
 def _fetch_issue(owner: str, name: str, number: int) -> dict[str, Any]:
     result = subprocess.run(
         [
-            "gh",
+            _bin("gh"),
             "api",
             "graphql",
             "-F",
@@ -217,7 +232,7 @@ def pull(
     typer.echo("Fetching issues from GitHub...")
     result = subprocess.run(
         [
-            "gh",
+            _bin("gh"),
             "api",
             "graphql",
             "--paginate",
@@ -283,9 +298,9 @@ def push(
 
     cmd: list[str] = []
     if number:
-        cmd = ["gh", "issue", "edit", str(number)]
+        cmd = [_bin("gh"), "issue", "edit", str(number)]
     else:
-        cmd = ["gh", "issue", "create"]
+        cmd = [_bin("gh"), "issue", "create"]
 
     title = metadata.get("title")
     if title:
