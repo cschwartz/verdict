@@ -32,4 +32,19 @@ in
       };
     };
   };
+
+  processes.cmdb-mock = {
+    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn cmdb.app:app --host 0.0.0.0 --port 4011";
+    process-compose = {
+      readiness_probe = {
+        http_get = {
+          host = "localhost";
+          port = 4011;
+          path = "/systems";
+        };
+        initial_delay_seconds = 2;
+        period_seconds = 2;
+      };
+    };
+  };
 }

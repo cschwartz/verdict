@@ -1,2 +1,6 @@
+inputs:
+  git-hooks:
+    url: github:cachix/git-hooks.nix
+
 imports:
   - /shared

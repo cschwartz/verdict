@@ -3,7 +3,7 @@ import respx
 from sqlmodel import select
 
 from app.errors import FetchError, ValidationError
-from app.models.asset import Asset
+from app.models.asset import Asset, AssetCreate
 from app.models.gold_source import GoldSourceType
 from app.result import Err, Ok
 from app.schemas.external.asset_inventory import AssetDetail
@@ -126,6 +126,7 @@ def test_to_asset():
     )
     asset = to_asset(detail)
 
+    assert isinstance(asset, AssetCreate)
     assert asset.name == "Online Banking Portal"
     assert asset.description == "Customer-facing online banking application"
     assert asset.tags == ["protection-level:high"]

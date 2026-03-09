@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     database_password: SecretStr = Field(default=...)
 
     asset_inventory_url: str = Field(default=...)
+    cmdb_url: str = Field(default=...)
 
     @property
     def database_url(self) -> str:
