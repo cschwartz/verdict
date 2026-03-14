@@ -23,6 +23,8 @@ jobs:
 
       - uses: cachix/install-nix-action@v31
 
+      - uses: DeterminateSystems/magic-nix-cache-action@v7
+
       - uses: cachix/cachix-action@v16
         with:
           name: devenv
@@ -33,3 +35,11 @@ jobs:
       - name: Run tests
         run: devenv test
         working-directory: verdict-backend
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v2
+        if: always()
+        with:
+          name: pytest
+          path: verdict-backend/test-results/*.xml
+          reporter: java-junit

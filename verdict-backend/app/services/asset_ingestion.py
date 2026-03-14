@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import Session
 
 from app.errors import DBError, FetchError, IngestionError, ValidationError, db_error_from
-from app.models.asset import Asset
+from app.models.asset import Asset, AssetCreate, AssetPublic
 from app.models.gold_source import GoldSourceMixin, GoldSourceType
 from app.result import Err, Ok, Result, Some
 from app.schemas.external.asset_inventory import AssetDetail, AssetIndexItem
@@ -25,7 +25,6 @@ def fetch_index(
     client: httpx.Client,
     url: str,
 ) -> Result[list[AssetIndexItem], SourceError]:
-    """Fetch the asset index from the external inventory."""
     try:
         response = client.get(url)
         response.raise_for_status()
@@ -46,7 +45,6 @@ def fetch_detail(
     url: str,
     item_id: str,
 ) -> Result[AssetDetail, SourceError]:
-    """Fetch a single asset's detail from the external inventory."""
     detail_url = f"{url}/{quote(item_id, safe='')}"
     try:
         response = client.get(detail_url)
@@ -63,9 +61,8 @@ def fetch_detail(
     return Ok(detail)
 
 
-def to_asset(detail: AssetDetail) -> Asset:
-    """Convert an external asset detail to a verdict Asset."""
-    return Asset(
+def to_asset(detail: AssetDetail) -> AssetCreate:
+    return AssetCreate(
         name=detail.name,
         description=detail.description,
         tags=detail.tags,
@@ -78,24 +75,19 @@ def ingest_assets(
     session: Session,
     client: httpx.Client,
     url: str,
-) -> Result[list[Asset], IngestionError]:
-    """Fetch assets from the external inventory and upsert them.
-
-    Three phases: fetch index, fetch detail for each, convert and upsert.
-    Does not commit — the caller owns the session lifecycle.
-    """
+) -> Result[list[AssetPublic], IngestionError]:
     index_result = fetch_index(client, url)
     if isinstance(index_result, Err):
         return Err(index_result.value)
 
-    assets: list[Asset] = []
+    assets: list[AssetPublic] = []
     for index_item in index_result.value:
         detail_result = fetch_detail(client, url, index_item.id)
         if isinstance(detail_result, Err):
             return Err(detail_result.value)
 
-        asset = to_asset(detail_result.value)
-        upsert_result = _upsert_asset(session, asset)
+        asset_create = to_asset(detail_result.value)
+        upsert_result = _upsert_asset(session, asset_create)
         if isinstance(upsert_result, Err):
             return Err(upsert_result.value)
         assets.append(upsert_result.value)
@@ -109,25 +101,33 @@ def ingest_assets(
 
 def _upsert_asset(
     session: Session,
-    asset: Asset,
-) -> Result[Asset, DBError]:
-    """Look up an existing asset by gold source or create a new one."""
+    asset_create: AssetCreate,
+) -> Result[AssetPublic, DBError]:
     result = GoldSourceMixin.get_by_gold_source(
         session,
         Asset,
-        asset.gold_source_type,
-        asset.gold_source_id,
+        asset_create.gold_source_type,
+        asset_create.gold_source_id,
     )
     if isinstance(result, Err):
-        return result
+        return Err(result.value)
 
     match result.value:
         case Some(existing):
-            existing.name = asset.name
-            existing.description = asset.description
-            existing.tags = asset.tags
+            existing.name = asset_create.name
+            existing.description = asset_create.description
+            existing.tags = asset_create.tags
             session.add(existing)
-            return Ok(existing)
+            try:
+                session.flush()
+            except OperationalError as e:
+                return Err(db_error_from(e))
+            return Ok(AssetPublic.model_validate(existing, from_attributes=True))
         case _:
-            session.add(asset)
-            return Ok(asset)
+            new = Asset.model_validate(asset_create, from_attributes=True)
+            session.add(new)
+            try:
+                session.flush()
+            except OperationalError as e:
+                return Err(db_error_from(e))
+            return Ok(AssetPublic.model_validate(new, from_attributes=True))

@@ -5,6 +5,10 @@ set dotenv-load
 default:
     @just --list
 
-# Start all mock services
-mock:
+# Start the asset inventory mock
+mock-asset-inventory:
     uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010
+
+# Start the CMDB mock
+mock-cmdb:
+    uv run uvicorn cmdb.app:app --host 0.0.0.0 --port 4011

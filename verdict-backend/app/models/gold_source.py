@@ -1,16 +1,18 @@
 from enum import StrEnum
+from typing import Any, overload
 
 import sqlalchemy as sa
 from sqlalchemy.exc import OperationalError
 from sqlmodel import Field, Session, SQLModel, select
 
 from app.errors import DBError, db_error_from
-from app.models.base_model import BaseModel
+from app.models.base_model import BaseModel, PublicModel
 from app.result import Err, Nothing, Ok, Option, Result, Some
 
 
 class GoldSourceType(StrEnum):
     ASSET_INVENTORY = "asset-inventory"
+    CMDB = "cmdb"
 
 
 class GoldSourceMixin(SQLModel):
@@ -26,16 +28,42 @@ class GoldSourceMixin(SQLModel):
     gold_source_type: str = Field(nullable=False)
 
     @staticmethod
+    @overload
     def get_by_gold_source[T: BaseModel](
         session: Session,
         model_class: type[T],
         gold_source_type: str,
         gold_source_id: str,
-    ) -> Result[Option[T], DBError]:
+    ) -> Result[Option[T], DBError]: ...
+
+    @staticmethod
+    @overload
+    def get_by_gold_source[T: BaseModel, P: PublicModel](
+        session: Session,
+        model_class: type[T],
+        gold_source_type: str,
+        gold_source_id: str,
+        *,
+        public_class: type[P],
+    ) -> Result[Option[P], DBError]: ...
+
+    @staticmethod
+    def get_by_gold_source[T: BaseModel, P: PublicModel](
+        session: Session,
+        model_class: type[T],
+        gold_source_type: str,
+        gold_source_id: str,
+        *,
+        public_class: type[P] | None = None,
+    ) -> Result[Option[Any], DBError]:
         """Query a model by its external gold source reference.
 
         Returns ``Ok(Some(record))`` on success, ``Ok(Nothing())`` when no
         record matches, or ``Err(DBError(...))`` on database operational errors.
+
+        When *public_class* is provided, the record is validated into that type
+        before being returned, narrowing optional fields like ``id`` and
+        timestamps.
         """
         if not issubclass(model_class, GoldSourceMixin):
             raise TypeError(f"{model_class.__name__} does not use GoldSourceMixin")
@@ -53,5 +81,8 @@ class GoldSourceMixin(SQLModel):
 
         if record is None:
             return Ok(Nothing())
+
+        if public_class is not None:
+            return Ok(Some(public_class.model_validate(record, from_attributes=True)))
 
         return Ok(Some(record))

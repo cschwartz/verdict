@@ -1,0 +1,41 @@
+- id: "SYS-001"
+  primary_fqdn: "banking-web-01.prod.example.com"
+  asset_gold_source_ids:
+    - "SVC-001"
+  tags:
+    - "env:production"
+    - "tier:frontend"
+
+- id: "SYS-002"
+  primary_fqdn: "shared-db-01.prod.example.com"
+  asset_gold_source_ids:
+    - "SVC-001"
+    - "SVC-002"
+  tags:
+    - "env:production"
+    - "tier:data"
+    - "role:database"
+
+- id: "SYS-003"
+  primary_fqdn: "monitoring-01.infra.example.com"
+  asset_gold_source_ids: []
+  tags:
+    - "env:production"
+    - "tier:infrastructure"
+
+- id: "SYS-004"
+  primary_fqdn: "banking-api-01.prod.example.com"
+  asset_gold_source_ids:
+    - "SVC-001"
+  tags:
+    - "env:production"
+    - "tier:backend"
+
+- id: "SYS-005"
+  primary_fqdn: "payment-gw-01.prod.example.com"
+  asset_gold_source_ids:
+    - "SVC-003"
+  tags:
+    - "env:production"
+    - "tier:backend"
+    - "compliance:pci-dss"
