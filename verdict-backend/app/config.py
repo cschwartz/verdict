@@ -14,11 +14,6 @@ class Settings(DatabaseSettings):
 
 
 @lru_cache
-def get_database_settings() -> DatabaseSettings:
-    return DatabaseSettings()
-
-
-@lru_cache
 def get_settings() -> Settings:
     """Cached settings instance"""
     return Settings()
