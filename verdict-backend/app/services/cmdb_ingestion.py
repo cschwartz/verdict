@@ -137,16 +137,16 @@ def _sync_asset_links(
     system_id: int,
     desired_asset_ids: list[int],
 ) -> Result[None, DBError]:
-    existing_rows = session.execute(
-        sa.select(asset_system.c.asset_id).where(asset_system.c.system_id == system_id)
-    ).all()
-    existing_ids = {row.asset_id for row in existing_rows}
-    desired_ids = set(desired_asset_ids)
-
-    to_remove = existing_ids - desired_ids
-    to_add = desired_ids - existing_ids
-
     try:
+        existing_rows = session.execute(
+            sa.select(asset_system.c.asset_id).where(asset_system.c.system_id == system_id)
+        ).all()
+        existing_ids = {row.asset_id for row in existing_rows}
+        desired_ids = set(desired_asset_ids)
+
+        to_remove = existing_ids - desired_ids
+        to_add = desired_ids - existing_ids
+
         if to_remove:
             session.execute(
                 sa.delete(asset_system).where(
