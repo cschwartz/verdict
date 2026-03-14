@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 
 import app.models  # noqa: F401  # register models for autogenerate
 from alembic import context
-from app.config import get_database_settings
+from app.database_config import get_database_settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
