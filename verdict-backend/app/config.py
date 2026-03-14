@@ -5,7 +5,7 @@ from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
@@ -19,9 +19,6 @@ class Settings(BaseSettings):
     database_user: str = Field(default=...)
     database_password: SecretStr = Field(default=...)
 
-    asset_inventory_url: str = Field(default=...)
-    cmdb_url: str = Field(default=...)
-
     @property
     def database_url(self) -> str:
         return (
@@ -30,8 +27,18 @@ class Settings(BaseSettings):
             f"@{self.database_host}:{self.database_port}/{self.database_name}"
         )
 
+
+class Settings(DatabaseSettings):
+    asset_inventory_url: str = Field(default=...)
+    cmdb_url: str = Field(default=...)
+
     debug: bool = False
     log_level: str = "info"
+
+
+@lru_cache
+def get_database_settings() -> DatabaseSettings:
+    return DatabaseSettings()
 
 
 @lru_cache

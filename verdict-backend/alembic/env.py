@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 
 import app.models  # noqa: F401  # register models for autogenerate
 from alembic import context
-from app.config import get_settings
+from app.config import get_database_settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -38,8 +38,8 @@ def run_migrations_offline() -> None:
     script output.
 
     """
-    settings = get_settings()
-    url = settings.database_url
+    db_settings = get_database_settings()
+    url = db_settings.database_url
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -58,9 +58,9 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
-    settings = get_settings()
+    db_settings = get_database_settings()
     connectable = engine_from_config(
-        {"sqlalchemy.url": settings.database_url},
+        {"sqlalchemy.url": db_settings.database_url},
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
