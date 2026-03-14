@@ -14,18 +14,6 @@ let
   postgres_password = "postgres";
 in
 {
-  nixpkgs.overlays = [
-    (final: prev: {
-      python313 = prev.python313.override {
-        packageOverrides = pythonFinal: pythonPrev: {
-          psycopg = pythonPrev.psycopg.overrideAttrs (_: {
-            doCheck = false;
-          });
-        };
-      };
-    })
-  ];
-
   process.manager.implementation = "process-compose";
 
   packages = with pkgs; [
