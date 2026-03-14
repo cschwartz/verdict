@@ -4,6 +4,26 @@ from collections.abc import Generator
 
 import httpx
 import pytest
+import sqlalchemy as sa
+
+from app.db import engine
+from app.models.asset import Asset
+from app.models.system import System, asset_system
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _clean_db() -> Generator[None, None, None]:
+    """Truncate all tables before and after the e2e session."""
+    _truncate()
+    yield
+    _truncate()
+
+
+def _truncate() -> None:
+    with engine.begin() as conn:
+        conn.execute(sa.delete(asset_system))
+        conn.execute(sa.delete(System))
+        conn.execute(sa.delete(Asset))
 
 
 @pytest.fixture(scope="session")

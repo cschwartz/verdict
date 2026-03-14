@@ -136,7 +136,7 @@ def _sync_asset_links(
     session: Session,
     system_id: int,
     desired_asset_ids: list[int],
-) -> None:
+) -> Result[None, DBError]:
     existing_rows = session.execute(
         sa.select(asset_system.c.asset_id).where(asset_system.c.system_id == system_id)
     ).all()
@@ -146,15 +146,19 @@ def _sync_asset_links(
     to_remove = existing_ids - desired_ids
     to_add = desired_ids - existing_ids
 
-    if to_remove:
-        session.execute(
-            sa.delete(asset_system).where(
-                asset_system.c.system_id == system_id,
-                asset_system.c.asset_id.in_(to_remove),
+    try:
+        if to_remove:
+            session.execute(
+                sa.delete(asset_system).where(
+                    asset_system.c.system_id == system_id,
+                    asset_system.c.asset_id.in_(to_remove),
+                )
             )
-        )
-    for aid in to_add:
-        session.execute(sa.insert(asset_system).values(system_id=system_id, asset_id=aid))
+        for aid in to_add:
+            session.execute(sa.insert(asset_system).values(system_id=system_id, asset_id=aid))
+    except OperationalError as e:
+        return Err(db_error_from(e))
+    return Ok(None)
 
 
 def ingest_systems(
@@ -190,7 +194,9 @@ def ingest_systems(
         if isinstance(upsert_result, Err):
             return Err(upsert_result.value)
         system_public = upsert_result.value
-        _sync_asset_links(session, system_public.id, resolved_assets[detail.id])
+        sync_result = _sync_asset_links(session, system_public.id, resolved_assets[detail.id])
+        if isinstance(sync_result, Err):
+            return Err(sync_result.value)
         systems.append(system_public)
 
     try:

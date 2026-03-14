@@ -1,11 +1,26 @@
 from collections.abc import Generator
 
 import httpx
+import pytest
 import respx
 from httpx import AsyncClient
+from sqlmodel import Session, select
 
 from app.deps import get_http_client
 from app.main import app
+from app.models.system import System
+
+
+@pytest.fixture
+def mock_http_client() -> Generator[None, None, None]:
+    def _override() -> Generator[httpx.Client, None, None]:
+        with httpx.Client() as client:
+            yield client
+
+    app.dependency_overrides[get_http_client] = _override
+    yield
+    app.dependency_overrides.pop(get_http_client, None)
+
 
 ASSET_INDEX = [
     {"id": "SVC-001", "name": "Online Banking Portal"},
@@ -41,14 +56,8 @@ def _mock_all_services() -> None:
 
 
 @respx.mock
-async def test_full_ingest_endpoint(app_client: AsyncClient, db_session):
+async def test_full_ingest_endpoint(app_client: AsyncClient, db_session, mock_http_client):
     _mock_all_services()
-
-    def _mock_http_client() -> Generator[httpx.Client, None, None]:
-        with httpx.Client() as client:
-            yield client
-
-    app.dependency_overrides[get_http_client] = _mock_http_client
 
     response = await app_client.post("/ingest")
 
@@ -57,11 +66,8 @@ async def test_full_ingest_endpoint(app_client: AsyncClient, db_session):
     assert data["assets_ingested"] == 1
     assert data["systems_ingested"] == 1
 
-    app.dependency_overrides.pop(get_http_client, None)
 
-
-@respx.mock
-async def test_full_ingest_rolls_back_on_system_failure(app_client: AsyncClient, db_session):
+def _mock_system_failure() -> None:
     respx.get("http://localhost:4010/assets").respond(200, json=ASSET_INDEX)
     for item_id, payload in ASSET_DETAIL.items():
         respx.get(f"http://localhost:4010/assets/{item_id}").respond(200, json=payload)
@@ -77,14 +83,25 @@ async def test_full_ingest_rolls_back_on_system_failure(app_client: AsyncClient,
         },
     )
 
-    def _mock_http_client() -> Generator[httpx.Client, None, None]:
-        with httpx.Client() as client:
-            yield client
 
-    app.dependency_overrides[get_http_client] = _mock_http_client
+@respx.mock
+async def test_full_ingest_returns_502_on_system_failure(
+    app_client: AsyncClient, db_session, mock_http_client
+):
+    _mock_system_failure()
 
     response = await app_client.post("/ingest")
 
     assert response.status_code == 502
 
-    app.dependency_overrides.pop(get_http_client, None)
+
+@respx.mock
+async def test_full_ingest_does_not_persist_on_system_failure(
+    app_client: AsyncClient, db_session: Session, mock_http_client
+):
+    _mock_system_failure()
+
+    await app_client.post("/ingest")
+
+    systems = db_session.exec(select(System)).all()
+    assert len(systems) == 0

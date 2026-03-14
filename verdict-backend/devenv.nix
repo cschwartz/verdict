@@ -14,6 +14,8 @@ let
   postgres_password = "postgres";
 in
 {
+  process.manager.implementation = "process-compose";
+
   packages = with pkgs; [
     pgcli
   ];
@@ -136,7 +138,7 @@ in
     just db-test-reset
     DATABASE_NAME=${database_name}_test just db-migrate
     just check
-    DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m 'not e2e'
+    DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m 'not e2e' --junit-xml=test-results/unit.xml
 
     # Cleanup background processes on any exit
     ASSET_MOCK_PID=
@@ -201,6 +203,6 @@ in
     # Reset test DB and run E2E tests
     just db-test-reset
     DATABASE_NAME=${database_name}_test just db-migrate
-    just test-e2e
+    DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m e2e --junit-xml=test-results/e2e.xml
   '';
 }
