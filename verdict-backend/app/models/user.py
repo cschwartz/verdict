@@ -32,7 +32,26 @@ class PermissionBase(SQLModel):
 
 class Permission(PermissionBase, BaseModel, table=True):
     __tablename__ = "permission"  # pyright: ignore[reportAssignmentType]
-    __table_args__ = (sa.UniqueConstraint("resource", "subresource", "action"),)
+    __table_args__ = (
+        # Two partial indexes instead of a single UniqueConstraint: PostgreSQL treats
+        # NULL as distinct in UNIQUE constraints, so (resource, NULL, action) would
+        # not be considered a duplicate. Partial indexes give correct semantics.
+        sa.Index(
+            "uq_permission_resource_action_no_subresource",
+            "resource",
+            "action",
+            unique=True,
+            postgresql_where=sa.text("subresource IS NULL"),
+        ),
+        sa.Index(
+            "uq_permission_resource_subresource_action",
+            "resource",
+            "subresource",
+            "action",
+            unique=True,
+            postgresql_where=sa.text("subresource IS NOT NULL"),
+        ),
+    )
 
 
 class PermissionPublic(PermissionBase, PublicModel):

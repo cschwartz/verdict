@@ -70,7 +70,23 @@ def upgrade() -> None:
         sa.Column("subresource", sqlmodel.sql.sqltypes.AutoString(), nullable=True),
         sa.Column("action", sqlmodel.sql.sqltypes.AutoString(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("resource", "subresource", "action"),
+    )
+    # A single UniqueConstraint("resource","subresource","action") would not prevent
+    # duplicates when subresource IS NULL, because PostgreSQL treats NULLs as distinct
+    # in unique constraints. Two partial indexes give correct uniqueness semantics.
+    op.create_index(
+        "uq_permission_resource_action_no_subresource",
+        "permission",
+        ["resource", "action"],
+        unique=True,
+        postgresql_where=sa.text("subresource IS NULL"),
+    )
+    op.create_index(
+        "uq_permission_resource_subresource_action",
+        "permission",
+        ["resource", "subresource", "action"],
+        unique=True,
+        postgresql_where=sa.text("subresource IS NOT NULL"),
     )
     op.create_table(
         "role",
