@@ -1,10 +1,11 @@
+from app.models.gold_source import GoldSourceType
 from tests.models.mixin_test_model import MixinTestModel
 
 
 def test_tags_round_trip(db_session):
     model = MixinTestModel(
         name="tagged",
-        gold_source_type="test",
+        gold_source_type=GoldSourceType.LOCAL_USER,
         gold_source_id="tags-1",
         tags=["os.linux.ubuntu-22.04", "role.database"],
     )

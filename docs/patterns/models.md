@@ -24,7 +24,7 @@ Each domain entity uses a family of SQLModel classes that separate concerns acro
 
 ## Gold Source Identity
 
-Models that are synced from external systems inherit from `GoldSourceMixin`, which provides `gold_source_id` and `gold_source_type` fields with a composite unique constraint. This allows any synced record to be looked up by its external identity. Each model adds a composite index on these fields for query performance. The mixin provides a `get_by_gold_source` query method that returns a typed `Result[Option[T], DBError]`, consistent with the error handling pattern.
+Models that are synced from external systems inherit from `GoldSourceMixin`, which provides `gold_source_id` (string) and `gold_source_type` (`GoldSourceType` enum, stored as `VARCHAR` to avoid a PostgreSQL enum type) fields with a composite unique constraint. This allows any synced record to be looked up by its external identity. The unique constraint implicitly backs gold-source lookups — no separate index is needed. The mixin provides a `get_by_gold_source` query method that returns a typed `Result[Option[T], DBError]`, consistent with the error handling pattern.
 
 ## Query Functions and Type Narrowing
 

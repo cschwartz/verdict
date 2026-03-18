@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlmodel import Session
 
 from app.db import get_session
-from app.models.gold_source import GoldSourceMixin
+from app.models.gold_source import GoldSourceMixin, GoldSourceType
 from app.models.system import System, SystemPublic
 from app.queries import get_by_id, get_paginated
 from app.result import unwrap_optional_or_raise, unwrap_or_raise
@@ -35,7 +35,7 @@ def list_systems(
     response_model=SystemPublic,
 )
 def get_system_by_gold_source(
-    source_type: str,
+    source_type: GoldSourceType,
     source_id: str,
     session: Session = Depends(get_session),
 ) -> SystemPublic:

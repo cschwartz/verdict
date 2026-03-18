@@ -47,4 +47,19 @@ in
       };
     };
   };
+
+  processes.iam-mock = {
+    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn iam.app:app --host 0.0.0.0 --port 4012";
+    process-compose = {
+      readiness_probe = {
+        http_get = {
+          host = "localhost";
+          port = 4012;
+          path = "/users";
+        };
+        initial_delay_seconds = 2;
+        period_seconds = 2;
+      };
+    };
+  };
 }

@@ -2,20 +2,23 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from app.models.base import GoldSourceMixin
+from app.models.gold_source import GoldSourceType
 from app.result import Nothing, Ok, Some
 from tests.models.mixin_test_model import MixinTestModel
+
+_TYPE = GoldSourceType.LOCAL_USER
 
 
 def test_get_by_gold_source_returns_record(db_session):
     model = MixinTestModel(
         name="findable",
-        gold_source_type="test",
+        gold_source_type=_TYPE,
         gold_source_id="abc-123",
     )
     db_session.add(model)
     db_session.flush()
 
-    result = GoldSourceMixin.get_by_gold_source(db_session, MixinTestModel, "test", "abc-123")
+    result = GoldSourceMixin.get_by_gold_source(db_session, MixinTestModel, _TYPE, "abc-123")
 
     assert isinstance(result, Ok)
     assert isinstance(result.value, Some)
@@ -24,7 +27,7 @@ def test_get_by_gold_source_returns_record(db_session):
 
 
 def test_get_by_gold_source_returns_nothing(db_session):
-    result = GoldSourceMixin.get_by_gold_source(db_session, MixinTestModel, "test", "nonexistent")
+    result = GoldSourceMixin.get_by_gold_source(db_session, MixinTestModel, _TYPE, "nonexistent")
 
     assert isinstance(result, Ok)
     assert isinstance(result.value, Nothing)
@@ -33,7 +36,7 @@ def test_get_by_gold_source_returns_nothing(db_session):
 def test_duplicate_gold_source_raises_integrity_error(db_session):
     model1 = MixinTestModel(
         name="first",
-        gold_source_type="test",
+        gold_source_type=_TYPE,
         gold_source_id="dup-1",
     )
     db_session.add(model1)
@@ -41,7 +44,7 @@ def test_duplicate_gold_source_raises_integrity_error(db_session):
 
     model2 = MixinTestModel(
         name="second",
-        gold_source_type="test",
+        gold_source_type=_TYPE,
         gold_source_id="dup-1",
     )
     db_session.add(model2)

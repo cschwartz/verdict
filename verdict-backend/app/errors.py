@@ -72,7 +72,6 @@ class FetchError(AppError):
         return f"fetch error ({self.url}): {self.raw}"
 
 
-@final
 @dataclass(frozen=True, slots=True)
 class ValidationError(AppError):
     raw: str
@@ -86,8 +85,34 @@ class ValidationError(AppError):
         return f"validation error: {self.raw}"
 
 
+@final
+@dataclass(frozen=True, slots=True)
+class RemoteValidationError(ValidationError):
+    url: str
+
+    @property
+    def detail(self) -> str:
+        return f"validation error ({self.url}): {self.raw}"
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class ConfigError(AppError):
+    path: str
+    raw: str
+
+    @property
+    def message(self) -> str:
+        return "config error"
+
+    @property
+    def detail(self) -> str:
+        return f"config error ({self.path}): {self.raw}"
+
+
 type WriteError = DuplicateError | DBError
-type IngestionError = FetchError | ValidationError | DBError
+type IngestionError = FetchError | RemoteValidationError | ValidationError | DBError
+type ConfigSyncError = ConfigError | ValidationError | DBError
 
 
 def db_error_from(e: OperationalError) -> DBError:

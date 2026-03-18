@@ -13,6 +13,9 @@ from app.result import Err, Nothing, Ok, Option, Result, Some
 class GoldSourceType(StrEnum):
     ASSET_INVENTORY = "asset-inventory"
     CMDB = "cmdb"
+    IAM_USER = "iam_user"
+    IAM_GROUP = "iam_group"
+    LOCAL_USER = "local_user"
 
 
 class GoldSourceMixin(SQLModel):
@@ -25,14 +28,14 @@ class GoldSourceMixin(SQLModel):
     __table_args__ = (sa.UniqueConstraint("gold_source_type", "gold_source_id"),)
 
     gold_source_id: str = Field(nullable=False)
-    gold_source_type: str = Field(nullable=False)
+    gold_source_type: GoldSourceType = Field(nullable=False, sa_type=sa.String())  # type: ignore[call-overload]  # SQLModel Field stub types sa_type as type[Any] but accepts TypeEngine instances too
 
     @staticmethod
     @overload
     def get_by_gold_source[T: BaseModel](
         session: Session,
         model_class: type[T],
-        gold_source_type: str,
+        gold_source_type: GoldSourceType,
         gold_source_id: str,
     ) -> Result[Option[T], DBError]: ...
 
@@ -41,7 +44,7 @@ class GoldSourceMixin(SQLModel):
     def get_by_gold_source[T: BaseModel, P: PublicModel](
         session: Session,
         model_class: type[T],
-        gold_source_type: str,
+        gold_source_type: GoldSourceType,
         gold_source_id: str,
         *,
         public_class: type[P],
@@ -51,7 +54,7 @@ class GoldSourceMixin(SQLModel):
     def get_by_gold_source[T: BaseModel, P: PublicModel](
         session: Session,
         model_class: type[T],
-        gold_source_type: str,
+        gold_source_type: GoldSourceType,
         gold_source_id: str,
         *,
         public_class: type[P] | None = None,
