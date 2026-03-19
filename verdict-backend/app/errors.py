@@ -91,6 +91,10 @@ class RemoteValidationError(ValidationError):
     url: str
 
     @property
+    def message(self) -> str:
+        return "upstream validation error"
+
+    @property
     def detail(self) -> str:
         return f"validation error ({self.url}): {self.raw}"
 
