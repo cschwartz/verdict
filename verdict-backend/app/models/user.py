@@ -65,9 +65,7 @@ _ROLE_NAME_PATTERN = r"^[a-z][a-z0-9-]*$"
 
 
 class RoleBase(GoldSourceMixin, SQLModel):
-    name: str = Field(
-        nullable=False, regex=_ROLE_NAME_PATTERN
-    )  # SQLModel uses pydantic v1-style `regex`
+    name: str = Field(nullable=False, schema_extra={"pattern": _ROLE_NAME_PATTERN})
     description: str = Field(default="", nullable=False)
 
 
