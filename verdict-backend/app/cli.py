@@ -70,16 +70,18 @@ def create_user(
                 typer.echo(f"Database error: {e.detail}", err=True)
                 raise typer.Exit(code=1)
             case Ok(user):
-                typer.echo(f"User '{username}' ready.")
+                pass
 
         match sync_user_roles(session, user.id, [r.id for r in roles]):
             case Err(e):
                 typer.echo(f"Database error: {e.detail}", err=True)
                 raise typer.Exit(code=1)
-        for rp in roles:
-            typer.echo(f"Assigned role '{rp.name}'.")
 
         session.commit()
+
+        typer.echo(f"User '{username}' ready.")
+        for rp in roles:
+            typer.echo(f"Assigned role '{rp.name}'.")
 
 
 if __name__ == "__main__":
