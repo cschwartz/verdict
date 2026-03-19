@@ -77,10 +77,11 @@ def test_create_user_succeeds():
 
 
 def test_create_user_is_idempotent():
-    runner.invoke(
+    first = runner.invoke(
         cli,
         ["--username", "cli-user-2", "--email", "cli-user-2@example.com"],
     )
+    assert first.exit_code == 0
     result = runner.invoke(
         cli,
         ["--username", "cli-user-2", "--email", "cli-user-2@example.com"],
@@ -111,7 +112,7 @@ def test_create_user_with_roles():
 
 
 def test_create_user_role_assignment_is_idempotent():
-    runner.invoke(
+    first = runner.invoke(
         cli,
         [
             "--username",
@@ -122,6 +123,7 @@ def test_create_user_role_assignment_is_idempotent():
             "cli-analyst",
         ],
     )
+    assert first.exit_code == 0
     result = runner.invoke(
         cli,
         [
