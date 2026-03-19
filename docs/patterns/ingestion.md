@@ -20,7 +20,7 @@ When multiple sources need to be ingested atomically, a global ingestion endpoin
 
 Sources that reference records from other sources (e.g., systems referencing assets) resolve those references by gold source ID during their pipeline. If a referenced record cannot be found, the entire source's ingestion is rejected.
 
-The upsert helpers (`upsert_by_gold_source`, `_upsert_permission`) use a select-then-insert pattern and only catch `OperationalError` on flush. `IntegrityError` from a concurrent insert is deliberately not handled: all ingestion and config-sync callers are single-threaded batch operations, so the race cannot occur. If concurrent callers are ever introduced, add `IntegrityError` handling at the flush site.
+The upsert helpers (`upsert_by_gold_source`, `_upsert_permission`) use a select-then-insert pattern. `upsert_by_gold_source` handles `IntegrityError` from concurrent inserts by rolling back and re-querying, so the losing thread returns the canonical record rather than propagating an exception. `_upsert_permission` does not yet handle this case — it is only called from config sync, which is not expected to run concurrently.
 
 ## Link Resolution and Syncing
 

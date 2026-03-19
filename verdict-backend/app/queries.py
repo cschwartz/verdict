@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, final, overload
 
 import sqlalchemy as sa
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, func, select
 
 from app.errors import DBError, db_error_from
@@ -140,10 +140,9 @@ def upsert_by_gold_source[T: BaseModel, P: PublicModel](
 ) -> Result[P, DBError]:
     """Select-then-insert upsert by gold source identity.
 
-    Only OperationalError is caught on flush — IntegrityError from a concurrent
-    insert is not handled. This is intentional: all callers are single-threaded
-    batch operations (ingestion services, config sync), so the race cannot occur.
-    If concurrent callers are ever introduced, add IntegrityError handling here.
+    On IntegrityError (concurrent insert winning the race), the session is
+    expired and the existing record is re-queried so the loser returns the
+    canonical record rather than failing.
     """
     match GoldSourceMixin.get_by_gold_source(
         session, model_class, gold_source_type, gold_source_id
@@ -158,6 +157,28 @@ def upsert_by_gold_source[T: BaseModel, P: PublicModel](
             session.add(record)
     try:
         session.flush()
+    except IntegrityError:
+        session.rollback()
+        match GoldSourceMixin.get_by_gold_source(
+            session, model_class, gold_source_type, gold_source_id
+        ):
+            case Err(e):
+                return Err(e)
+            case Ok(Some(record)):
+                on_existing(record)
+                session.add(record)
+            case Ok(Nothing()) | _:
+                # Should not happen: integrity error means the row exists.
+                return Err(
+                    DBError(
+                        statement=None,
+                        raw="concurrent insert race: record not found after rollback",
+                    )
+                )
+        try:
+            session.flush()
+        except OperationalError as e:
+            return Err(db_error_from(e))
     except OperationalError as e:
         return Err(db_error_from(e))
     return Ok(public_class.model_validate(record, from_attributes=True))
