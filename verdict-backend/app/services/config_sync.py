@@ -3,7 +3,7 @@ from pathlib import Path
 
 import yaml
 from pydantic import ValidationError as PydanticValidationError
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from app.errors import ConfigError, ConfigSyncError, DBError, ValidationError, db_error_from
@@ -41,12 +41,12 @@ def _upsert_permission(
     session: Session,
     cfg: PermissionConfig,
 ) -> Result[PermissionPublic, DBError]:
+    stmt = select(Permission).where(
+        Permission.resource == cfg.resource,
+        Permission.subresource == cfg.subresource,
+        Permission.action == cfg.action,
+    )
     try:
-        stmt = select(Permission).where(
-            Permission.resource == cfg.resource,
-            Permission.subresource == cfg.subresource,
-            Permission.action == cfg.action,
-        )
         existing = session.exec(stmt).first()
     except OperationalError as e:
         return Err(db_error_from(e))
@@ -62,6 +62,19 @@ def _upsert_permission(
     session.add(new)
     try:
         session.flush()
+    except IntegrityError:
+        session.rollback()
+        try:
+            existing = session.exec(stmt).first()
+        except OperationalError as e:
+            return Err(db_error_from(e))
+        if existing is not None:
+            return Ok(PermissionPublic.model_validate(existing, from_attributes=True))
+        return Err(
+            DBError(
+                statement=None, raw="concurrent insert race: permission not found after rollback"
+            )
+        )
     except OperationalError as e:
         return Err(db_error_from(e))
     return Ok(PermissionPublic.model_validate(new, from_attributes=True))
