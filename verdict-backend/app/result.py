@@ -72,6 +72,7 @@ def _raise_for_err(error: object) -> NoReturn:
     if isinstance(error, AppError):
         logger.error("%s", error.detail)
         raise HTTPException(status_code=error.http_status, detail=error.message)
+    logger.error("unexpected error type in unwrap_or_raise: %r", error)
     raise HTTPException(status_code=500, detail="Internal server error")
 
 
