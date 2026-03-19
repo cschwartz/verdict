@@ -10,7 +10,6 @@ from app.errors import (
     FetchError,
     IngestionError,
     RemoteValidationError,
-    ValidationError,
     db_error_from,
 )
 from app.http import fetch_json
@@ -54,7 +53,8 @@ def to_system(detail: SystemDetail) -> SystemCreate:
 def _resolve_asset_ids(
     session: Session,
     gold_source_ids: list[str],
-) -> Result[list[int], ValidationError | DBError]:
+    url: str,
+) -> Result[list[int], RemoteValidationError | DBError]:
     asset_ids: list[int] = []
     for gs_id in gold_source_ids:
         result = GoldSourceMixin.get_by_gold_source(
@@ -71,7 +71,8 @@ def _resolve_asset_ids(
                 asset_ids.append(asset.id)
             case Nothing():
                 return Err(
-                    ValidationError(
+                    RemoteValidationError(
+                        url=url,
                         raw=f"unresolvable asset reference: {gs_id}",
                     )
                 )
@@ -129,7 +130,7 @@ def ingest_systems(
     resolved_assets: dict[str, list[int]] = {}
     for detail in details:
         if detail.asset_gold_source_ids:
-            resolve_result = _resolve_asset_ids(session, detail.asset_gold_source_ids)
+            resolve_result = _resolve_asset_ids(session, detail.asset_gold_source_ids, url)
             if isinstance(resolve_result, Err):
                 return Err(resolve_result.value)
             resolved_assets[detail.id] = resolve_result.value

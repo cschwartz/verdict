@@ -17,6 +17,6 @@ def trigger_sync(
     session: Session = Depends(get_session),
 ) -> SyncResponse:
     result = sync_config(session, Path(settings.config_basedir))
-    response = unwrap_or_raise(result, err_status=500)
+    response = unwrap_or_raise(result)
     session.commit()
     return response

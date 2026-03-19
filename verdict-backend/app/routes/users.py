@@ -37,10 +37,7 @@ def trigger_user_ingestion(
     session: Session = Depends(get_session),
     client: httpx.Client = Depends(get_http_client),
 ) -> UserIngestionResponse:
-    users = unwrap_or_raise(
-        ingest_users(session, client, settings.iam_url),
-        err_status=502,
-    )
+    users = unwrap_or_raise(ingest_users(session, client, settings.iam_url))
     session.commit()
     return UserIngestionResponse(users_ingested=len(users))
 
