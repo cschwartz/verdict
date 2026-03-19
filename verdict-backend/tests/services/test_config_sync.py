@@ -117,7 +117,8 @@ def test_upsert_role_creates_new(db_session: Session):
 
 def test_upsert_role_updates_existing_name(db_session: Session):
     cfg = RoleConfig(name="engineers", gold_source_id="GRP-001", permissions=[])
-    _upsert_role(db_session, cfg)
+    first = _upsert_role(db_session, cfg)
+    assert isinstance(first, Ok)
 
     updated_cfg = RoleConfig(name="senior-engineers", gold_source_id="GRP-001", permissions=[])
     result = _upsert_role(db_session, updated_cfg)
@@ -173,7 +174,8 @@ def test_sync_config_idempotent(db_session: Session, tmp_path: Path):
     """)
     )
 
-    sync_config(db_session, tmp_path)
+    first = sync_config(db_session, tmp_path)
+    assert isinstance(first, Ok)
     result = sync_config(db_session, tmp_path)
 
     assert isinstance(result, Ok)
