@@ -82,7 +82,7 @@ db-info:
 
 # Regenerate JSON Schema for config/roles/*.yaml from the RoleConfig pydantic model
 gen-config-schema:
-    uv run python -c "from app.schemas.config import RoleConfig; import json; print(json.dumps(RoleConfig.model_json_schema(), indent=2))" > ../config/roles/schema.json
+    uv run python -c "from app.schemas.config import RoleConfig; import json; print(json.dumps(RoleConfig.model_json_schema(), indent=2))" > ../config/roles/schema.json.tmp && mv ../config/roles/schema.json.tmp ../config/roles/schema.json
 
 # Create a local user (--role flags are optional and repeatable)
 create-user username email *ROLES:
