@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=./schema.json
+name: engineers
+gold_source_id: GRP-001
+permissions:
+  - resource: assets
+    action: read
+  - resource: systems
+    action: read

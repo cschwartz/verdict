@@ -67,41 +67,36 @@ class Nothing:
 type Option[T] = Some[T] | Nothing
 
 
-def _raise_for_err(error: object, *, status: int) -> NoReturn:
+def _raise_for_err(error: object) -> NoReturn:
     """Log detail and raise an HTTPException with the safe message."""
     if isinstance(error, AppError):
         logger.error("%s", error.detail)
-        raise HTTPException(status_code=status, detail=error.message)
-    raise HTTPException(status_code=status, detail="Internal server error")
+        raise HTTPException(status_code=error.http_status, detail=error.message)
+    logger.error("unexpected error type in unwrap_or_raise: %r", error)
+    raise HTTPException(status_code=500, detail="Internal server error")
 
 
 def unwrap_or_raise[T, E](
     result: Result[T, E],
-    *,
-    err_status: int = 503,
 ) -> T:
-    """Unwrap a ``Result[T, E]`` or raise an ``HTTPException``.
-
-    Raises *err_status* for ``Err``.
-    """
+    """Unwrap a ``Result[T, E]`` or raise an ``HTTPException``."""
     if isinstance(result, Err):
-        _raise_for_err(result.value, status=err_status)
+        _raise_for_err(result.value)
     return result.value
 
 
 def unwrap_optional_or_raise[T, E](
     result: Result[Option[T], E],
     *,
-    err_status: int = 503,
     not_found_status: int = 404,
     not_found_detail: str = "Not found",
 ) -> T:
     """Unwrap a ``Result[Option[T], E]`` or raise an ``HTTPException``.
 
-    Raises *err_status* for ``Err`` and *not_found_status* for ``Nothing``.
+    Raises the error's own ``http_status`` for ``Err`` and *not_found_status* for ``Nothing``.
     """
     if isinstance(result, Err):
-        _raise_for_err(result.value, status=err_status)
+        _raise_for_err(result.value)
     match result.value:
         case Some(value):
             return value

@@ -1,0 +1,18 @@
+- id: "USR-001"
+  username: "alice"
+  email: "alice@example.com"
+  groups:
+    - "GRP-001"
+
+- id: "USR-002"
+  username: "bob"
+  email: "bob@example.com"
+  groups:
+    - "GRP-002"
+
+- id: "USR-003"
+  username: "charlie"
+  email: "charlie@example.com"
+  groups:
+    - "GRP-001"
+    - "GRP-002"

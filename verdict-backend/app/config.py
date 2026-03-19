@@ -8,6 +8,8 @@ from app.database_config import DatabaseSettings
 class Settings(DatabaseSettings):
     asset_inventory_url: str = Field(default=...)
     cmdb_url: str = Field(default=...)
+    iam_url: str = Field(default=...)
+    config_basedir: str = Field(default="config")
 
     debug: bool = False
     log_level: str = "info"

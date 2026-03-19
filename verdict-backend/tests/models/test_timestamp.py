@@ -1,13 +1,14 @@
 import time
 from datetime import UTC, datetime
 
+from app.models.gold_source import GoldSourceType
 from tests.models.mixin_test_model import MixinTestModel
 
 
 def test_created_at_auto_populated(db_session):
     model = MixinTestModel(
         name="test",
-        gold_source_type="test",
+        gold_source_type=GoldSourceType.LOCAL_USER,
         gold_source_id="created-at-1",
     )
     db_session.add(model)
@@ -21,7 +22,7 @@ def test_created_at_auto_populated(db_session):
 def test_updated_at_changes_on_update(db_session):
     model = MixinTestModel(
         name="original",
-        gold_source_type="test",
+        gold_source_type=GoldSourceType.LOCAL_USER,
         gold_source_id="updated-at-1",
     )
     db_session.add(model)

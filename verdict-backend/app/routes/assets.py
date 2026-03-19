@@ -3,7 +3,7 @@ from sqlmodel import Session
 
 from app.db import get_session
 from app.models.asset import Asset, AssetPublic
-from app.models.gold_source import GoldSourceMixin
+from app.models.gold_source import GoldSourceMixin, GoldSourceType
 from app.queries import get_by_id, get_paginated
 from app.result import unwrap_optional_or_raise, unwrap_or_raise
 from app.schemas.asset import AssetListResponse
@@ -28,7 +28,7 @@ def list_assets(
     response_model=AssetPublic,
 )
 def get_asset_by_gold_source(
-    source_type: str,
+    source_type: GoldSourceType,
     source_id: str,
     session: Session = Depends(get_session),
 ) -> AssetPublic:

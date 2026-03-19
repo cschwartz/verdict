@@ -2,7 +2,7 @@ import httpx
 import respx
 from sqlmodel import select
 
-from app.errors import FetchError, ValidationError
+from app.errors import FetchError, RemoteValidationError
 from app.models.asset import Asset, AssetCreate
 from app.models.gold_source import GoldSourceType
 from app.result import Err, Ok
@@ -62,7 +62,7 @@ def test_fetch_index_invalid_response():
         result = fetch_index(client, FAKE_URL)
 
     assert isinstance(result, Err)
-    assert isinstance(result.value, ValidationError)
+    assert isinstance(result.value, RemoteValidationError)
 
 
 @respx.mock
@@ -111,7 +111,7 @@ def test_fetch_detail_invalid_response():
         result = fetch_detail(client, FAKE_URL, "SVC-001")
 
     assert isinstance(result, Err)
-    assert isinstance(result.value, ValidationError)
+    assert isinstance(result.value, RemoteValidationError)
 
 
 # --- to_asset tests ---
@@ -162,7 +162,7 @@ def test_ingest_invalid_index_persists_nothing(db_session):
         result = ingest_assets(db_session, client, FAKE_URL)
 
     assert isinstance(result, Err)
-    assert isinstance(result.value, ValidationError)
+    assert isinstance(result.value, RemoteValidationError)
 
     assets = list(db_session.exec(select(Asset)).all())
     assert len(assets) == 0

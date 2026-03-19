@@ -7,7 +7,7 @@ from tests.factories import BaseModelFactory
 
 
 class AssetFactory(BaseModelFactory):
-    class Meta:  # type: ignore[override]
+    class Meta:  # type: ignore[override]  # factory-boy expects Meta override per subclass
         model = Asset
 
     name = factory.Iterator(

@@ -1,0 +1,59 @@
+{
+  "$defs": {
+    "PermissionConfig": {
+      "properties": {
+        "resource": {
+          "title": "Resource",
+          "type": "string"
+        },
+        "subresource": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Subresource"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource",
+        "action"
+      ],
+      "title": "PermissionConfig",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "name": {
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "title": "Name",
+      "type": "string"
+    },
+    "gold_source_id": {
+      "title": "Gold Source Id",
+      "type": "string"
+    },
+    "permissions": {
+      "items": {
+        "$ref": "#/$defs/PermissionConfig"
+      },
+      "title": "Permissions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "gold_source_id",
+    "permissions"
+  ],
+  "title": "RoleConfig",
+  "type": "object"
+}

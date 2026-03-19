@@ -106,6 +106,8 @@ in
     DATABASE_URL=postgresql://${postgres_user}:${postgres_password}@${postgres_host}:${toString postgres_port}/${database_name}
     ASSET_INVENTORY_URL=http://localhost:4010/assets
     CMDB_URL=http://localhost:4011/systems
+    IAM_URL=http://localhost:4012/users
+    CONFIG_BASEDIR=../config
     EOF
     echo "Generated .env.sample"
   '';
@@ -143,10 +145,11 @@ in
     # Cleanup background processes on any exit
     ASSET_MOCK_PID=
     CMDB_MOCK_PID=
+    IAM_MOCK_PID=
     APP_PID=
     cleanup() {
-      kill $APP_PID $ASSET_MOCK_PID $CMDB_MOCK_PID 2>/dev/null || true
-      wait $APP_PID $ASSET_MOCK_PID $CMDB_MOCK_PID 2>/dev/null || true
+      kill $APP_PID $ASSET_MOCK_PID $CMDB_MOCK_PID $IAM_MOCK_PID 2>/dev/null || true
+      wait $APP_PID $ASSET_MOCK_PID $CMDB_MOCK_PID $IAM_MOCK_PID 2>/dev/null || true
     }
     trap cleanup EXIT INT TERM
 
@@ -158,6 +161,10 @@ in
     echo "Starting mock CMDB..."
     (cd $MOCK_SERVICES_DIR && exec uv run uvicorn cmdb.app:app --host 0.0.0.0 --port 4011) &
     CMDB_MOCK_PID=$!
+
+    echo "Starting mock IAM..."
+    (cd $MOCK_SERVICES_DIR && exec uv run uvicorn iam.app:app --host 0.0.0.0 --port 4012) &
+    IAM_MOCK_PID=$!
 
     retries=0
     until curl -sf http://localhost:4010/assets > /dev/null 2>&1; do
@@ -181,11 +188,24 @@ in
     done
     echo "CMDB mock ready"
 
+    retries=0
+    until curl -sf http://localhost:4012/users > /dev/null 2>&1; do
+      retries=$((retries + 1))
+      if [ $retries -ge 30 ]; then
+        echo "ERROR: IAM mock failed to start"
+        exit 1
+      fi
+      sleep 1
+    done
+    echo "IAM mock ready"
+
     # Start verdict app against test DB
     echo "Starting verdict app..."
     (DATABASE_NAME=${database_name}_test \
       ASSET_INVENTORY_URL=http://localhost:4010/assets \
       CMDB_URL=http://localhost:4011/systems \
+      IAM_URL=http://localhost:4012/users \
+      CONFIG_BASEDIR=../config \
       exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000) &
     APP_PID=$!
 

@@ -80,6 +80,14 @@ db-info:
     echo "  DATABASE_USER: $DATABASE_USER"
     echo "  Test DB:       $DATABASE_NAME_TEST"
 
+# Regenerate JSON Schema for config/roles/*.yaml from the RoleConfig pydantic model
+gen-config-schema:
+    uv run python -c "from app.schemas.config import RoleConfig; import json; print(json.dumps(RoleConfig.model_json_schema(), indent=2))" > ../config/roles/schema.json.tmp && mv ../config/roles/schema.json.tmp ../config/roles/schema.json
+
+# Create a local user (--role flags are optional and repeatable)
+create-user username email *ROLES:
+    uv run python -m app.cli --username {{username}} --email {{email}} {{ROLES}}
+
 # Set up the full development environment
 setup:
     #!/usr/bin/env bash

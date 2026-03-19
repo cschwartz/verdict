@@ -8,6 +8,8 @@ External data is ingested through a three-phase pipeline that separates fetching
 
 **Phase 2 — Fetch Detail.** For each item in the index, the service calls the detail endpoint to retrieve the full representation. This is validated against a separate Pydantic model for the detail response shape.
 
+Both fetch phases go through the `fetch_json` helper (`app/http.py`), which handles HTTP errors uniformly: transport/status failures become `FetchError` (with the URL), and Pydantic parse failures become `RemoteValidationError` (a URL-aware `ValidationError` subclass). Services declare their source error type as `FetchError | RemoteValidationError`.
+
 **Phase 3 — Convert and Upsert.** A pure function maps each external detail to an `XCreate` model instance. The orchestrator then upserts each converted record into the database, keyed by gold source ID (the record's unique identifier in the external system — see [Gold Source Identity](models.md#gold-source-identity)), and returns `XPublic` instances via `model_validate` after flush.
 
 The separation of index and detail schemas reflects the reality that list and detail endpoints often return different shapes. Keeping the conversion as a pure function (no IO, no session) makes it independently testable. The orchestrator does not commit — the caller (typically the route handler) owns the session lifecycle, which preserves all-or-nothing semantics: if any phase fails, nothing is persisted.
@@ -17,6 +19,8 @@ The separation of index and detail schemas reflects the reality that list and de
 When multiple sources need to be ingested atomically, a global ingestion endpoint (`POST /ingest`) runs each source's pipeline in sequence within a single session. It commits only if all sources succeed. If any source fails, the session is rolled back and nothing is persisted.
 
 Sources that reference records from other sources (e.g., systems referencing assets) resolve those references by gold source ID during their pipeline. If a referenced record cannot be found, the entire source's ingestion is rejected.
+
+The upsert helpers (`upsert_by_gold_source`, `_upsert_permission`) use a select-then-insert pattern. `upsert_by_gold_source` handles `IntegrityError` from concurrent inserts by rolling back and re-querying, so the losing thread returns the canonical record rather than propagating an exception. `_upsert_permission` does not yet handle this case — it is only called from config sync, which is not expected to run concurrently.
 
 ## Link Resolution and Syncing
 

@@ -10,7 +10,14 @@ A `Result[T, E]` is either `Ok(value)` or `Err(error)`, where the error type is 
 
 All error types inherit from `AppError`, an abstract base class that enforces a two-level message contract. Each error exposes a `message` property (safe to return to clients) and a `detail` property (for internal logging only, may contain URLs, SQL statements, or driver messages). `__str__` returns `message`, so errors are safe by default anywhere they are converted to strings. Error types store their raw diagnostic data in fields and compute both properties from them.
 
-Error types are domain-specific dataclasses defined in `app/errors.py`. They form unions that describe what can go wrong in each context: `IngestionError` covers fetch failures, schema validation errors, and database errors. Functions declare which error union they can produce, and callers handle each variant explicitly.
+Error types are domain-specific dataclasses defined in `app/errors.py`. They form unions that describe what can go wrong in each context:
+
+- `IngestionError = FetchError | RemoteValidationError | ValidationError | DBError` — covers HTTP failures, remote schema parse errors, local validation errors, and database errors.
+- `ConfigSyncError = ConfigError | ValidationError | DBError` — covers YAML file errors (missing directory, unreadable file, empty file), local validation errors, and database errors.
+
+`RemoteValidationError` is a distinct error type (not a subtype of `ValidationError`) for upstream data quality failures — produced when an HTTP response body fails Pydantic validation or when a remote service references a resource that cannot be resolved locally. It includes the source URL in its `detail` and maps to HTTP 502. `ValidationError` is for local validation failures (e.g., config files) where no URL context is available, and maps to HTTP 422.
+
+Functions declare which error union they can produce, and callers handle each variant explicitly.
 
 ## Route Helpers
 

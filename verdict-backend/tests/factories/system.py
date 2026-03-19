@@ -7,7 +7,7 @@ from tests.factories import BaseModelFactory
 
 
 class SystemFactory(BaseModelFactory):
-    class Meta:  # type: ignore[override]
+    class Meta:  # type: ignore[override]  # factory-boy expects Meta override per subclass
         model = System
 
     primary_fqdn = factory.Sequence(lambda n: f"host-{n:04d}.prod.example.com")

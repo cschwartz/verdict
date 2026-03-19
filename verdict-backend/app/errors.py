@@ -21,6 +21,10 @@ class AppError(ABC):
     @abstractmethod
     def detail(self) -> str: ...
 
+    @property
+    @abstractmethod
+    def http_status(self) -> int: ...
+
     def __str__(self) -> str:
         return self.message
 
@@ -39,6 +43,10 @@ class DuplicateError(AppError):
     def detail(self) -> str:
         return f"duplicate {self.model}: {self.key}"
 
+    @property
+    def http_status(self) -> int:
+        return 409
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -56,6 +64,10 @@ class DBError(AppError):
             return f"database error: {self.statement}"
         return "database error"
 
+    @property
+    def http_status(self) -> int:
+        return 500
+
 
 @final
 @dataclass(frozen=True, slots=True)
@@ -71,8 +83,11 @@ class FetchError(AppError):
     def detail(self) -> str:
         return f"fetch error ({self.url}): {self.raw}"
 
+    @property
+    def http_status(self) -> int:
+        return 502
 
-@final
+
 @dataclass(frozen=True, slots=True)
 class ValidationError(AppError):
     raw: str
@@ -85,9 +100,52 @@ class ValidationError(AppError):
     def detail(self) -> str:
         return f"validation error: {self.raw}"
 
+    @property
+    def http_status(self) -> int:
+        return 422
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class RemoteValidationError(AppError):
+    url: str
+    raw: str
+
+    @property
+    def message(self) -> str:
+        return "upstream validation error"
+
+    @property
+    def detail(self) -> str:
+        return f"validation error ({self.url}): {self.raw}"
+
+    @property
+    def http_status(self) -> int:
+        return 502
+
+
+@final
+@dataclass(frozen=True, slots=True)
+class ConfigError(AppError):
+    path: str
+    raw: str
+
+    @property
+    def message(self) -> str:
+        return "config error"
+
+    @property
+    def detail(self) -> str:
+        return f"config error ({self.path}): {self.raw}"
+
+    @property
+    def http_status(self) -> int:
+        return 500
+
 
 type WriteError = DuplicateError | DBError
-type IngestionError = FetchError | ValidationError | DBError
+type IngestionError = FetchError | RemoteValidationError | ValidationError | DBError
+type ConfigSyncError = ConfigError | ValidationError | DBError
 
 
 def db_error_from(e: OperationalError) -> DBError:

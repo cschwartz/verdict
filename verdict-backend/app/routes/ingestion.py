@@ -18,14 +18,8 @@ def trigger_full_ingestion(
     session: Session = Depends(get_session),
     client: httpx.Client = Depends(get_http_client),
 ) -> FullIngestionResponse:
-    assets = unwrap_or_raise(
-        ingest_assets(session, client, settings.asset_inventory_url),
-        err_status=502,
-    )
-    systems = unwrap_or_raise(
-        ingest_systems(session, client, settings.cmdb_url),
-        err_status=502,
-    )
+    assets = unwrap_or_raise(ingest_assets(session, client, settings.asset_inventory_url))
+    systems = unwrap_or_raise(ingest_systems(session, client, settings.cmdb_url))
     session.commit()
     return FullIngestionResponse(
         assets_ingested=len(assets),
