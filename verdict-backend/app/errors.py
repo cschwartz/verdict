@@ -107,8 +107,9 @@ class ValidationError(AppError):
 
 @final
 @dataclass(frozen=True, slots=True)
-class RemoteValidationError(ValidationError):
+class RemoteValidationError(AppError):
     url: str
+    raw: str
 
     @property
     def message(self) -> str:

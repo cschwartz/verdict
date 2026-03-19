@@ -15,7 +15,7 @@ Error types are domain-specific dataclasses defined in `app/errors.py`. They for
 - `IngestionError = FetchError | RemoteValidationError | ValidationError | DBError` — covers HTTP failures, remote schema parse errors, local validation errors, and database errors.
 - `ConfigSyncError = ConfigError | ValidationError | DBError` — covers YAML file errors (missing directory, unreadable file, empty file), local validation errors, and database errors.
 
-`RemoteValidationError` is a URL-aware subclass of `ValidationError`. It is produced when an HTTP response body fails Pydantic validation and includes the source URL in its `detail`, making it easier to diagnose which remote endpoint returned an unexpected shape. `ValidationError` is used for local validation failures (e.g., config files) where no URL context is available.
+`RemoteValidationError` is a distinct error type (not a subtype of `ValidationError`) for upstream data quality failures — produced when an HTTP response body fails Pydantic validation or when a remote service references a resource that cannot be resolved locally. It includes the source URL in its `detail` and maps to HTTP 502. `ValidationError` is for local validation failures (e.g., config files) where no URL context is available, and maps to HTTP 422.
 
 Functions declare which error union they can produce, and callers handle each variant explicitly.
 

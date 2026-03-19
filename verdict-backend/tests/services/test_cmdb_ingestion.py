@@ -3,7 +3,7 @@ import respx
 import sqlalchemy as sa
 from sqlmodel import select
 
-from app.errors import FetchError, ValidationError
+from app.errors import FetchError, RemoteValidationError
 from app.models.gold_source import GoldSourceType
 from app.models.system import System, SystemCreate, asset_system
 from app.result import Err, Ok
@@ -68,7 +68,7 @@ def test_fetch_index_invalid_response():
         result = fetch_index(client, FAKE_URL)
 
     assert isinstance(result, Err)
-    assert isinstance(result.value, ValidationError)
+    assert isinstance(result.value, RemoteValidationError)
 
 
 @respx.mock
@@ -117,7 +117,7 @@ def test_fetch_detail_invalid_response():
         result = fetch_detail(client, FAKE_URL, "SYS-001")
 
     assert isinstance(result, Err)
-    assert isinstance(result.value, ValidationError)
+    assert isinstance(result.value, RemoteValidationError)
 
 
 # --- to_system tests ---
@@ -193,7 +193,7 @@ def test_ingest_unresolvable_asset_rejects_all(db_session):
         result = ingest_systems(db_session, client, FAKE_URL)
 
     assert isinstance(result, Err)
-    assert isinstance(result.value, ValidationError)
+    assert isinstance(result.value, RemoteValidationError)
 
     systems = list(db_session.exec(select(System)).all())
     assert len(systems) == 0
