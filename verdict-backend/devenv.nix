@@ -131,7 +131,7 @@ in
 
   tasks."verdict-app:db-migrate" = lib.mkIf (!config.devenv.isTesting) {
     exec = "just db-migrate";
-    after = [ "verdict-app:gen-env" ];
+    after = [ "verdict-app:gen-env" "devenv:processes:postgres" ];
     before = [ "devenv:processes:verdict-app" ];
   };
 
@@ -143,7 +143,7 @@ in
       just db-migrate
       echo "db-setup: done"
     '';
-    after = [ "verdict-app:gen-env" ];
+    after = [ "verdict-app:gen-env" "devenv:processes:postgres" ];
     before = [ "devenv:processes:verdict-app" ];
   };
 
