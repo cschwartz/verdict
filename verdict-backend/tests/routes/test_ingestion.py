@@ -6,6 +6,7 @@ import respx
 from httpx import AsyncClient
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.deps import get_http_client
 from app.main import app
 from app.models.system import System
@@ -47,12 +48,12 @@ SYSTEM_DETAIL = {
 
 
 def _mock_all_services() -> None:
-    respx.get("http://localhost:4010/assets").respond(200, json=ASSET_INDEX)
+    respx.get(settings.asset_inventory_url).respond(200, json=ASSET_INDEX)
     for item_id, payload in ASSET_DETAIL.items():
-        respx.get(f"http://localhost:4010/assets/{item_id}").respond(200, json=payload)
-    respx.get("http://localhost:4011/systems").respond(200, json=SYSTEM_INDEX)
+        respx.get(f"{settings.asset_inventory_url}/{item_id}").respond(200, json=payload)
+    respx.get(settings.cmdb_url).respond(200, json=SYSTEM_INDEX)
     for item_id, payload in SYSTEM_DETAIL.items():
-        respx.get(f"http://localhost:4011/systems/{item_id}").respond(200, json=payload)
+        respx.get(f"{settings.cmdb_url}/{item_id}").respond(200, json=payload)
 
 
 @respx.mock
@@ -68,12 +69,12 @@ async def test_full_ingest_endpoint(app_client: AsyncClient, db_session, mock_ht
 
 
 def _mock_system_failure() -> None:
-    respx.get("http://localhost:4010/assets").respond(200, json=ASSET_INDEX)
+    respx.get(settings.asset_inventory_url).respond(200, json=ASSET_INDEX)
     for item_id, payload in ASSET_DETAIL.items():
-        respx.get(f"http://localhost:4010/assets/{item_id}").respond(200, json=payload)
-    respx.get("http://localhost:4011/systems").respond(200, json=SYSTEM_INDEX)
+        respx.get(f"{settings.asset_inventory_url}/{item_id}").respond(200, json=payload)
+    respx.get(settings.cmdb_url).respond(200, json=SYSTEM_INDEX)
     # System detail references a nonexistent asset
-    respx.get("http://localhost:4011/systems/SYS-001").respond(
+    respx.get(f"{settings.cmdb_url}/SYS-001").respond(
         200,
         json={
             "id": "SYS-001",

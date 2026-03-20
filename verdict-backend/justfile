@@ -5,13 +5,6 @@ set dotenv-load
 default:
     @just --list
 
-# Start the FastAPI development server
-dev:
-    uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Start the FastAPI development server against the test database
-dev-test:
-    DATABASE_NAME=$DATABASE_NAME_TEST uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run tests (excludes e2e; use test-e2e for those)
 test *ARGS:
@@ -69,17 +62,6 @@ db-test-reset:
 db-shell:
     pgcli
 
-# Show database configuration
-db-info:
-    #!/usr/bin/env bash
-    echo "Database Configuration:"
-    echo "  DATABASE_URL:  $DATABASE_URL"
-    echo "  DATABASE_HOST: $DATABASE_HOST"
-    echo "  DATABASE_PORT: $DATABASE_PORT"
-    echo "  DATABASE_NAME: $DATABASE_NAME"
-    echo "  DATABASE_USER: $DATABASE_USER"
-    echo "  Test DB:       $DATABASE_NAME_TEST"
-
 # Regenerate JSON Schema for config/roles/*.yaml from the RoleConfig pydantic model
 gen-config-schema:
     uv run python -c "from app.schemas.config import RoleConfig; import json; print(json.dumps(RoleConfig.model_json_schema(), indent=2))" > ../config/roles/schema.json.tmp && mv ../config/roles/schema.json.tmp ../config/roles/schema.json
@@ -87,28 +69,3 @@ gen-config-schema:
 # Create a local user (--role flags are optional and repeatable)
 create-user username email *ROLES:
     uv run python -m app.cli --username {{username}} --email {{email}} {{ROLES}}
-
-# Set up the full development environment
-setup:
-    #!/usr/bin/env bash
-    echo "Setting up development environment..."
-
-    echo ""
-    echo "1. Installing Python dependencies..."
-    uv sync
-
-    echo ""
-    echo "2. Waiting for PostgreSQL to be ready..."
-    until pg_isready > /dev/null 2>&1; do
-        echo "Waiting for PostgreSQL..."
-        sleep 1
-    done
-
-    echo ""
-    echo "3. Running database migrations..."
-    uv run alembic upgrade head
-
-    echo ""
-    echo "✅ Setup complete!"
-    echo ""
-    just --list

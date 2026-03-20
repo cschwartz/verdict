@@ -14,52 +14,36 @@ in
   };
 
   # Points to the mock-services directory at runtime.
-  # Default works when mock-services IS the devenv project.
-  # Importers (e.g. verdict-backend) override via mkForce.
-  env.MOCK_SERVICES_DIR = lib.mkDefault config.devenv.root;
+  # Uses the git root so this works both standalone and when imported.
+  env.MOCK_SERVICES_DIR = lib.mkDefault "${config.git.root}/mock-services";
 
   processes.asset-inventory-mock = {
-    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010";
-    process-compose = {
-      readiness_probe = {
-        http_get = {
-          host = "localhost";
-          port = 4010;
-          path = "/assets";
-        };
-        initial_delay_seconds = 2;
-        period_seconds = 2;
-      };
+    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port ${toString config.processes.asset-inventory-mock.ports.http.value}";
+    ports.http.allocate = 4010;
+    ready.http.get = {
+      host = "localhost";
+      port = config.processes.asset-inventory-mock.ports.http.value;
+      path = "/assets";
     };
   };
 
   processes.cmdb-mock = {
-    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn cmdb.app:app --host 0.0.0.0 --port 4011";
-    process-compose = {
-      readiness_probe = {
-        http_get = {
-          host = "localhost";
-          port = 4011;
-          path = "/systems";
-        };
-        initial_delay_seconds = 2;
-        period_seconds = 2;
-      };
+    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn cmdb.app:app --host 0.0.0.0 --port ${toString config.processes.cmdb-mock.ports.http.value}";
+    ports.http.allocate = 4011;
+    ready.http.get = {
+      host = "localhost";
+      port = config.processes.cmdb-mock.ports.http.value;
+      path = "/systems";
     };
   };
 
   processes.iam-mock = {
-    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn iam.app:app --host 0.0.0.0 --port 4012";
-    process-compose = {
-      readiness_probe = {
-        http_get = {
-          host = "localhost";
-          port = 4012;
-          path = "/users";
-        };
-        initial_delay_seconds = 2;
-        period_seconds = 2;
-      };
+    exec = "cd $MOCK_SERVICES_DIR && uv run uvicorn iam.app:app --host 0.0.0.0 --port ${toString config.processes.iam-mock.ports.http.value}";
+    ports.http.allocate = 4012;
+    ready.http.get = {
+      host = "localhost";
+      port = config.processes.iam-mock.ports.http.value;
+      path = "/users";
     };
   };
 }

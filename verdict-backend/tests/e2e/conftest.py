@@ -1,5 +1,6 @@
 """Fixtures for E2E tests that run against real services."""
 
+import os
 from collections.abc import Generator
 
 import httpx
@@ -28,7 +29,7 @@ def _truncate() -> None:
 
 @pytest.fixture(scope="session")
 def base_url() -> str:
-    return "http://localhost:8000"
+    return os.environ.get("VERDICT_URL", "http://localhost:8000")
 
 
 @pytest.fixture(scope="session")
