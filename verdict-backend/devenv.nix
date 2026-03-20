@@ -9,19 +9,21 @@ let
   pythonVersion = lib.fileContents ./.python-version;
   database_name = "verdict";
   postgres_host = "127.0.0.1";
-  postgres_port = 5432;
   postgres_user = "postgres";
   postgres_password = "postgres";
 in
 {
-  process.manager.implementation = "process-compose";
-
   packages = with pkgs; [
     pgcli
   ];
 
-  # Override mock-services path for the cross-project import.
-  env.MOCK_SERVICES_DIR = lib.mkForce "${config.devenv.root}/../mock-services";
+  env = {
+    DATABASE_NAME = if config.devenv.isTesting then "${database_name}_test" else database_name;
+    DATABASE_PORT = toString config.processes.postgres.ports.main.value;
+
+    ENVIRONMENT = if config.devenv.isTesting then "test" else "development";
+    VERDICT_URL = "http://localhost:${toString config.processes.verdict-app.ports.http.value}";
+  };
 
   languages.python = {
     enable = true;
@@ -36,8 +38,8 @@ in
     enable = true;
     package = pkgs.postgresql_16;
 
-    listen_addresses = postgres_host;
-    port = postgres_port;
+    listen_addresses = lib.mkForce postgres_host;
+    port = 5432;
 
     initialScript = ''
       DO $$
@@ -75,18 +77,12 @@ in
   };
 
   processes.verdict-app = {
-    exec = "uv run uvicorn app.main:app --host 0.0.0.0 --port 8000";
-    process-compose = {
-      disabled = true;
-      readiness_probe = {
-        http_get = {
-          host = "localhost";
-          port = 8000;
-          path = "/";
-        };
-        initial_delay_seconds = 2;
-        period_seconds = 2;
-      };
+    ports.http.allocate = 8000;
+    exec = "uv run uvicorn app.main:app --host 0.0.0.0 --port ${toString config.processes.verdict-app.ports.http.value}";
+    ready.http.get = {
+      host = "localhost";
+      port = config.processes.verdict-app.ports.http.value;
+      path = "/";
     };
   };
 
@@ -94,23 +90,6 @@ in
     ruff.enable = true;
     ruff-format.enable = true;
   };
-
-  scripts.gen-env-sample.exec = ''
-    cat > .env.sample <<EOF
-    DATABASE_NAME=${database_name}
-    DATABASE_NAME_TEST=${database_name}_test
-    DATABASE_HOST=${postgres_host}
-    DATABASE_PORT=${toString postgres_port}
-    DATABASE_USER=${postgres_user}
-    DATABASE_PASSWORD=${postgres_password}
-    DATABASE_URL=postgresql://${postgres_user}:${postgres_password}@${postgres_host}:${toString postgres_port}/${database_name}
-    ASSET_INVENTORY_URL=http://localhost:4010/assets
-    CMDB_URL=http://localhost:4011/systems
-    IAM_URL=http://localhost:4012/users
-    CONFIG_BASEDIR=../config
-    EOF
-    echo "Generated .env.sample"
-  '';
 
   enterShell = ''
     echo ""
@@ -120,109 +99,59 @@ in
     echo "PostgreSQL: $(postgres --version | head -n1)"
     echo "uv: $(uv --version)"
     echo ""
-    echo "Database: $DATABASE_URL"
-    echo ""
-    gen-env-sample
-    echo ""
-    echo "Run 'just setup' to initialize the environment"
-    echo "Run 'just dev' to start the development server"
-    echo "Run 'just db-info' to see database configuration"
+    echo "Run 'devenv up' to start the development server"
     echo ""
   '';
 
+  tasks."verdict-app:gen-env" =
+    let
+      environment = if config.devenv.isTesting then "test" else "development";
+      db_name = if config.devenv.isTesting then "${database_name}_test" else database_name;
+      db_port = toString config.processes.postgres.ports.main.value;
+    in
+    {
+      exec = ''
+        cat > .env.${environment} <<EOF
+        ENVIRONMENT=${environment}
+        DATABASE_NAME=${db_name}
+        DATABASE_HOST=${postgres_host}
+        DATABASE_PORT=${db_port}
+        DATABASE_USER=${postgres_user}
+        DATABASE_PASSWORD=${postgres_password}
+        DATABASE_URL=postgresql://${postgres_user}:${postgres_password}@${postgres_host}:${db_port}/${db_name}
+        ASSET_INVENTORY_URL=http://localhost:${toString config.processes.asset-inventory-mock.ports.http.value}/assets
+        CMDB_URL=http://localhost:${toString config.processes.cmdb-mock.ports.http.value}/systems
+        IAM_URL=http://localhost:${toString config.processes.iam-mock.ports.http.value}/users
+        CONFIG_BASEDIR=../config
+        VERDICT_URL=http://localhost:${toString config.processes.verdict-app.ports.http.value}
+        EOF
+      '';
+      before = [ "devenv:processes:verdict-app" ];
+    };
+
+  tasks."verdict-app:db-migrate" = lib.mkIf (!config.devenv.isTesting) {
+    exec = "just db-migrate";
+    after = [ "verdict-app:gen-env" ];
+    before = [ "devenv:processes:verdict-app" ];
+  };
+
+  tasks."verdict-app:db-setup" = lib.mkIf config.devenv.isTesting {
+    exec = ''
+      echo "db-setup: resetting test database"
+      just db-reset
+      echo "db-setup: running migrations"
+      just db-migrate
+      echo "db-setup: done"
+    '';
+    after = [ "verdict-app:gen-env" ];
+    before = [ "devenv:processes:verdict-app" ];
+  };
+
   enterTest = ''
-    until pg_isready -h ${postgres_host} -p ${toString postgres_port} -q; do
-      sleep 0.1
-    done
-    gen-env-sample
-    cp .env.sample .env
-    just db-migrate
-    just db-test-reset
-    DATABASE_NAME=${database_name}_test just db-migrate
     just check
-    DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m 'not e2e' --junit-xml=test-results/unit.xml
 
-    # Cleanup background processes on any exit
-    ASSET_MOCK_PID=
-    CMDB_MOCK_PID=
-    IAM_MOCK_PID=
-    APP_PID=
-    cleanup() {
-      kill $APP_PID $ASSET_MOCK_PID $CMDB_MOCK_PID $IAM_MOCK_PID 2>/dev/null || true
-      wait $APP_PID $ASSET_MOCK_PID $CMDB_MOCK_PID $IAM_MOCK_PID 2>/dev/null || true
-    }
-    trap cleanup EXIT INT TERM
+    DATABASE_NAME_TEST=${database_name}_test just test --junit-xml=test-results/unit.xml
 
-    # Start mock services
-    echo "Starting mock asset inventory..."
-    (cd $MOCK_SERVICES_DIR && exec uv run uvicorn asset_inventory.app:app --host 0.0.0.0 --port 4010) &
-    ASSET_MOCK_PID=$!
-
-    echo "Starting mock CMDB..."
-    (cd $MOCK_SERVICES_DIR && exec uv run uvicorn cmdb.app:app --host 0.0.0.0 --port 4011) &
-    CMDB_MOCK_PID=$!
-
-    echo "Starting mock IAM..."
-    (cd $MOCK_SERVICES_DIR && exec uv run uvicorn iam.app:app --host 0.0.0.0 --port 4012) &
-    IAM_MOCK_PID=$!
-
-    retries=0
-    until curl -sf http://localhost:4010/assets > /dev/null 2>&1; do
-      retries=$((retries + 1))
-      if [ $retries -ge 30 ]; then
-        echo "ERROR: Asset inventory mock failed to start"
-        exit 1
-      fi
-      sleep 1
-    done
-    echo "Asset inventory mock ready"
-
-    retries=0
-    until curl -sf http://localhost:4011/systems > /dev/null 2>&1; do
-      retries=$((retries + 1))
-      if [ $retries -ge 30 ]; then
-        echo "ERROR: CMDB mock failed to start"
-        exit 1
-      fi
-      sleep 1
-    done
-    echo "CMDB mock ready"
-
-    retries=0
-    until curl -sf http://localhost:4012/users > /dev/null 2>&1; do
-      retries=$((retries + 1))
-      if [ $retries -ge 30 ]; then
-        echo "ERROR: IAM mock failed to start"
-        exit 1
-      fi
-      sleep 1
-    done
-    echo "IAM mock ready"
-
-    # Start verdict app against test DB
-    echo "Starting verdict app..."
-    (DATABASE_NAME=${database_name}_test \
-      ASSET_INVENTORY_URL=http://localhost:4010/assets \
-      CMDB_URL=http://localhost:4011/systems \
-      IAM_URL=http://localhost:4012/users \
-      CONFIG_BASEDIR=../config \
-      exec uv run uvicorn app.main:app --host 0.0.0.0 --port 8000) &
-    APP_PID=$!
-
-    retries=0
-    until curl -sf http://localhost:8000/ > /dev/null 2>&1; do
-      retries=$((retries + 1))
-      if [ $retries -ge 30 ]; then
-        echo "ERROR: Verdict app failed to start"
-        exit 1
-      fi
-      sleep 1
-    done
-    echo "Verdict app ready"
-
-    # Reset test DB and run E2E tests
-    just db-test-reset
-    DATABASE_NAME=${database_name}_test just db-migrate
-    DATABASE_NAME=${database_name}_test uv run pytest --disable-plugin-autoload -p asyncio -m e2e --junit-xml=test-results/e2e.xml
+    DATABASE_NAME_TEST=${database_name}_test just test-e2e --junit-xml=test-results/e2e.xml
   '';
 }
